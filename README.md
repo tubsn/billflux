@@ -1,6 +1,6 @@
 # Billflux Financial Management.
 
-[![Billfluxpreview](https://raw.githubusercontent.com/tubsn/billflux/main/billflux.jpg)]
+![Billfluxpreview](https://raw.githubusercontent.com/tubsn/billflux/main/billflux.jpg)
 
 Billflux is a financial and invoice management solution, designed for small businesses with multiple clients. It also includes a financial planning interface.
 
