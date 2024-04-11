@@ -1,0 +1,14 @@
+.notes-area {height:200px}
+
+.flex-fields {display:flex; gap:1em;}
+.flex-fields label { width:100%;}
+
+
+.income-grid {
+display:grid; grid-gap:1em; grid-row-gap:0em; align-items:start;
+grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.last-grid {
+	grid-column: 4 / span 1;
+}

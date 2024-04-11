@@ -1,0 +1,128 @@
+html {scrollbar-color: #525d6a #1A1A1C;}
+body {background-color:#1b2531; color:white;}
+
+::selection {background-color: #047b65}
+
+h1, h2, h3, h4, h5, h6 {color:white}
+
+.auth-layout {background:#2e333c}
+
+table.fancy {background-color: #3b414c;}
+table.fancy tr:nth-child(2n) {background-color: #2c323c;}
+
+table.fancy td, table.fancy th {border-bottom-color: #171717;}
+table.fancy th {background-color: #10151e}
+table.fancy.js-sortable th:hover {background-color: #0f1011}
+
+table.js-sortable th.dir-u {background-image: linear-gradient(to top, #171a1e 0%, #2a313a 82%, #c8d9a2 82%, #cec980 100%) !important}
+table.js-sortable th.dir-d {background-image: linear-gradient(#171a1e 0%, #2a313a 82%, #c8d9a2 82%, #cec980 100%) !important;}
+
+/*table.js-sortable th.dir-d {background-image: linear-gradient(to top, #2a313a 0%, #171a1e 82%, #cec980 82%, #c8d9a2 100%) !important}*/
+
+
+table.fancy tr:hover {background-color:#375c6f}
+
+table.homepage {border-bottom-color: #171a1e}
+
+a:link, a:visited {color:#78d2df}
+a:focus, a:active {background:#397a88; outline: 1px solid #4e777c;}
+
+details.fancy summary {background-color: #181818;}
+details.fancy summary:hover {background-color: #000;}
+
+.main-nav {background:#0d1118;}
+
+.main-nav ul li a {color:white;}
+.main-nav ul li ul li {background: #0d1118;}
+.main-nav ul li:hover {color: inherit; background-color: inherit;}
+.main-nav ul li ul li a {color:white;}
+
+.main-nav a:hover, .main-nav a:focus {background-color: #51ac8e}
+
+.form-tabs li {background:#11161c}
+.form-tabs li.active {background:#2b313c}
+.form-tabs li:hover {background:#375c6f}
+.form-tabs {color:white;}
+
+@media only screen and (max-width: 768px) {
+	.form-tabs {background-color: #12161e}
+}
+
+
+form button, .button {background-color: black}
+form button[type="submit"]:hover, form button[type="button"]:hover, .button:hover {background-color: #458db0;}
+
+
+.form-container {background:#2b3139; border-top-color: #565d6d}
+.form-container.geplant {border-top-color: #404f60;}
+.form-container.in-arbeit, .form-container.in-Arbeit {border-top-color: #ac7732;}
+.form-container.abgelehnt {border-top-color: #3c4a64}
+form .button.light {background: #484b53; color:white;}
+form button.light, .button.light {background: #4a4e55; color:white;}
+form button.light.danger:hover, a.button.light.danger:hover {background-color: #ea6c5f;}
+
+.fl-upload-button:hover {background-color: #458db0;}
+
+
+.status.geplant, .status.reserviert, .status.beauftragt {background-color:#606060}
+.status.in-arbeit, .status.gestaltet, .status.in.Arbeit, .status.zur.Freigabe {background-color:#ce7400}
+.status.fertig, .status.eingebucht, .status.freigegeben {background-color:#45bf6f}
+.status.abgelehnt {background-color: #3c4a64}
+
+input {accent-color: #acacac}
+
+.hausmitteilung {background:#000}
+.grey-inset {background-color:#151515}
+.blue-inset {background-color:#0e0e0f}
+.boxed {background-color:#151515}
+
+.sub-item {background-color: #14171c; border-color:#4a4e55;}
+
+.utm-link {background-color:#4a4e55}
+.fancy .utm-link {background-color:#191f28}
+
+.icon-delete {opacity:0.7}
+
+.huge-shadow {box-shadow: none}
+
+textarea, input, textarea, select {background-color:#1f262f; border: 1px solid #5a5c66; color: #dee1e6;}
+textarea:focus, input:focus, textarea:focus, select:focus {background-color:#243144;}
+
+.attachment-edit-input {color:#c8c8c8}
+.attachment-edit-input:focus, .attachment-edit-input:active  {color:white !important}
+.attachment-edit-input:hover {color: white !important}
+
+.white-inset {background-color:#3f444c; border: none}
+
+.verlag-preview {background-color: #4a4e55;}
+
+hr {border-color: white;}
+
+.meta-info {color:#e8e8e8}
+
+.attachment-item {background:#222;}
+.attachment-item figcaption:hover .attachment-name::before {background-color:#222}
+.attachment-remove {background-color:#458db0}
+
+.progress-bar-container {--primary: #21242d;}
+
+/*
+.progress-bar-container {color: #656c7b}
+.progress-bar-items li {border-color: #35475e; outline: .3em solid #1b2531; background-color:#13161a}
+.progress-bar {background-color:#13161a}
+*/
+
+.searchbox input {background-color: #21252d;}
+.searchbox input:focus {background-color: #282d35; border:none;}
+input:focus, input:active, select:focus, select:active, textarea:focus, textarea:active {outline: 2px solid #7d84a2;}
+
+.checkbox-array label {background-color: #1f262f}
+.checkbox-array label:active {background-color: #3c575b;}
+input[type="checkbox"] {accent-color: #000;}
+.checkbox-array label:focus-within {outline: 2px solid #498c83}
+.checkbox-array label:hover {background-color: #3c575b;}
+
+.overflow-table {background:none;}
+
+.flash-row {animation:blink .8s both}
+@keyframes blink{0%,50%,100%{background-color:#1b5668}25%,75%{background-color:#1b7591}}
