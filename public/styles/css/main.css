@@ -74,6 +74,11 @@ form .button.light:hover, form button.light:hover {background-color: #ccc}
 .dark-inset {background-color:#cecece;}
 .blue-inset {background-color:#d7dce1;} /*#d2dfec */
 
+.icongroup {display:flex; gap:0.4em;}
+.pushbtn {display:inline-block; font-size:0.9em; padding:0 0.2em; 
+color: #c4c4c4; cursor:pointer; border-radius:0.3em;}
+.pushbtn:hover {background-color:#bcbcbc; color:white;}
+
 .adress {max-width:400px; padding-right:3em; margin-bottom:0.5em;}
 .adress + small {opacity:0.6}
 

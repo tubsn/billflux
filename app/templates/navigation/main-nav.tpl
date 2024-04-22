@@ -14,6 +14,8 @@
 
 		<li><a href="/dashboards">Dashboards</a>
 			<ul class="dropdown">
+				<li><a href="/report/tax">Steuerbericht dieses Jahr</a></li>
+				<li><a href="/report/tax/lastyear">Steuerbericht letztes Jahr</a></li>
 				<li><a href="/dashboards/invoices">Rechnungen</a></li>
 			</ul>
 		</li>

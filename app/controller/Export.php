@@ -13,10 +13,6 @@ class Export extends Controller {
 		if (!Auth::logged_in() && !Auth::valid_ip()) {Auth::loginpage();}
 	}
 
-	public function pdf() {
-		$this->PDFGenerator->test();
-	}
-
 
 	public function invoice($id) {
 

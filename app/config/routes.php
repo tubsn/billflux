@@ -10,14 +10,10 @@ $routes->get('/kontakte', 'Staticpages@kontakte');
 $routes->get('/kunden', 'Customers@index');
 $routes->get('/test', 'Tests@index');
 
-// External
-$routes->get('/meinprojekt/{token}', 'Clientview@index');
-$routes->post('/meinprojekt/{token}', 'Clientview@update');
 
-
-// Tradeflux
-$routes->get('/finance', 'Trade@finance');
-$routes->get('/trade', 'Trade@index');
+// Reports 
+$routes->get('/report/tax', 'Report@tax');
+$routes->get('/report/tax/lastyear', 'Report@tax_last_year');
 
 // Folder Management
 $routes->post('/auftrag/{id:\d+}/upload[/{origin}]', 'Folder@upload');
@@ -42,17 +38,25 @@ $routes->get('/attachment/{token:.{17,23}}/remove-attachment/{attachmentID:\d+}'
 $routes->post('/ai/texts', 'AiGenerator@email');
 $routes->post('/ai/extractaddress', 'AiGenerator@extract_address');
 
+// Tradeflux
+$routes->get('/finance', 'Trade@finance');
+$routes->get('/trade', 'Trade@index');
+
+
 // API
 $routes->get('/api/folder/{id:\d+}', 'Api@folder');
 $routes->get('/api/folder/{id:\d+}/attachments', 'Api@folder_attachments');
 $routes->get('/api/folder/{id:\d+}/edited', 'Api@folder_edited');
 $routes->get('/api/folder/{id:\d+}/events', 'Api@folder_events');
 $routes->post('/api/folder/{id:\d+}/status', 'Folder@update_status');
+
+// API Orders
 $routes->get('/api/orders', 'Api@list_orders');
 $routes->get('/api/orders/add', 'Api@add_order');
 $routes->get('/api/orders/{orderID:\d+}/delete', 'Api@delete_order');
+$routes->get('/api/orders/{orderID:\d+}/hide', 'Api@hide_order');
+$routes->get('/api/orders/showall', 'Api@show_orders');
 $routes->post('/api/orders/{orderID:\d+}', 'Api@change_order');
-$routes->get('/api/users/backoffice', 'Api@user_list_orders');
 
 
 

@@ -126,7 +126,6 @@ class Folder extends Controller {
 	public function save() {
 		if (empty($_POST['title'])) {$_POST['title'] = 'Unbenannt';}
 		$_POST = empty_to_null($_POST);
-		//$_POST['customertoken'] = $this->Folders->customer_token();
 		$newID = $this->Folders->create(array_filter($_POST));
 		$this->Events->internal('Projekt erstellt', $newID);
 		$url = '/auftrag/' . $newID . '/' . slugify($_POST['title']);

@@ -4,11 +4,6 @@ data() {return {
 	loading: false,
 	operations: [],
 	userlist: [],
-	referencelist: ['Ist Zustand', 'Variante', 'Sonstiges'],
-	categorylist: ['Thermische Hülle', 'Anlagentechnik', 'Sonstiges'],
-	componentlist: ['Dach', 'Oberste Geschossdecke', 
-		'Außenwand', 'Bodenaufbau', 'Fenster',
-		'Tür', 'Heizung', 'Sonstiges'],
 }},
 
 props: [],
@@ -33,6 +28,7 @@ template: `
 
 
 <div class="flex small" style="justify-content:flex-end; float:right;">
+<button @click.prevent="showAll" class="light" type="button">alle zeigen</button>&nbsp;
 <button @click.prevent="copyContent" class="light" type="button">kopieren</button>&nbsp;
 <button @click.prevent="add" type="button">+</button>
 </div>
@@ -49,6 +45,7 @@ template: `
 
 <thead>
 	<tr>
+		<th>Foc.</th>
 		<th>Aktie</th>
 		<th style="width:80px">Volume</th>
 		<th>Buy</th>
@@ -62,7 +59,12 @@ template: `
 </thead>
 <tbody>
 
-<tr v-for="item in operations">
+<tr v-for="item in operations" v-show="!item.hidden">
+
+	<td><div class="icongroup">
+		<span @click="$emit('selectone',item)" class="pushbtn" >1</span>
+		<span @click="$emit('selecttwo',item)" class="pushbtn" >2</span>
+	</div></td>
 	<td><input v-model="item.title" data-name="title" :data-id="item.id" @change="edit" type="text" placeholder="Name"></td>
 	<td><input v-model="item.amount" data-name="amount" :data-id="item.id" @change="edit" type="text" placeholder="Anzahl"></td>
 	<td><input v-model="item.buy" data-name="buy" :data-id="item.id" @change="edit" type="text" placeholder="Kaufpreis"></td>
@@ -73,7 +75,10 @@ template: `
 	<td><input v-model="item.outdate" data-name="outdate" :data-id="item.id" @change="edit" type="text" placeholder="Verkaufsdatum"></td>
 
 	<td style="text-align: right;">
+	<div class="icongroup">
+		<img @click="hide(item)" class="icon-delete" src="/styles/flundr/img/icon-hide.svg">
 		<img @click="remove(item.id)" class="icon-delete" src="/styles/flundr/img/icon-delete-black.svg">
+	</div>
 	</td>
 </tr>
 
@@ -84,28 +89,11 @@ template: `
 
 mounted: function() {
 	this.$nextTick(() => {
-		this.load_operation_users()
 		this.load_operations()
 	})
 },
 
 methods: {
-
-	async load_operation_users() {
-		const apiurl = '/api/users/backoffice'
-		let response = await fetch(apiurl)
-		if (!response.ok) {}
-		let text; text = await response.text(); // Recieves any Server output
-
-		try { // Parse Text as JSON
-			let json = JSON.parse(text)
-			this.userlist = json.map(item => item.firstname);
-
-		} catch {
-			this.errormessage = text
-		}
-
-	},
 
 	parseGer(n) {
 		if (!n) {return 0}
@@ -115,29 +103,31 @@ methods: {
 
 	calcRevenue(item) {
 		if (!item.sell) {return 0}
-		
+
 		let buyTotal = 0
 		let sellTotal = 0
+		let amount = parseFloat(this.parseGer(item.amount))
 
-			let buy = this.parseGer(item.buy)
-			let sell = this.parseGer(item.sell)
+		let buy = this.parseGer(item.buy)
+		let sell = this.parseGer(item.sell)
 
-			buy = parseFloat(buy)
-			sell = parseFloat(sell)
+		buy = parseFloat(buy)
+		sell = parseFloat(sell)
+		
+		buy = buy * amount
+		sell = sell * amount
 
-			buy = buy * parseFloat(item.amount)
-			sell = sell * parseFloat(item.amount)
+		buyTotal = buyTotal + buy
+		sellTotal = sellTotal + sell
 
-			buyTotal = buyTotal + buy
-			sellTotal = sellTotal + sell
-
-			return this.gnum(sellTotal - buyTotal)
+		return this.gnum(sellTotal - buyTotal)
 	},
 
 	gnum(value) {
 		if (!value) {return 0}
 		if (isNaN(value)) {return 0}
 		return parseFloat(value).toLocaleString('de-DE')
+
 	},
 
 	async load_operations() {
@@ -190,6 +180,18 @@ methods: {
 		const apiurl = '/api/orders/' + id + '/delete'
 		let response = await fetch(apiurl)
 		this.operations = this.operations.filter(item => item.id !== id)
+	},
+
+	async hide(item) {
+		const apiurl = '/api/orders/' + item.id + '/hide'
+		let response = await fetch(apiurl)
+		item.hidden = 1
+	},
+
+	async showAll() {
+		this.operations.map(item => item.hidden = false)
+		//const apiurl = '/api/orders/showall'
+		//let response = await fetch(apiurl)
 	},
 
 	async edit(event) {

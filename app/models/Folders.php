@@ -47,6 +47,13 @@ class Folders extends Model
 			$copy['id'],
 			$copy['edited'],
 			$copy['created'],
+			$copy['phase'],
+			$copy['invoice'],
+			$copy['invoice_id'],
+			$copy['revenue'],
+			$copy['income'],
+			$copy['commission'],
+			$copy['bank'],
 			$copy['attachments'],
 		);
 
@@ -132,6 +139,37 @@ class Folders extends Model
 	}
 
 
+	public function tax_year($start = 'first day of january last year', $end = 'last day of december last year') {
+
+		$start = date("Y-m-d", strtotime($start));
+		$end = date("Y-m-d", strtotime($end));
+
+		$table = $this->db->table;
+		$SQLstatement = $this->db->connection->prepare(
+			"SELECT id, invoice_id, status, title, date_invoice, date_payment,  revenue, income, type, 
+			 IF(revenue <> income, REPLACE(income, ',', '.') - REPLACE(revenue, ',', '.') , 0) AS mwst
+			 FROM $table 
+			WHERE `date_invoice` BETWEEN :lastYearStart AND :lastYearEnd
+			ORDER BY `date_invoice` ASC"
+		);
+
+		$SQLstatement->execute([':lastYearStart' => $start, ':lastYearEnd' => $end]);
+		$folder = $SQLstatement->fetchAll() ?? null;
+
+		$folder = $this->to_german_number($folder, 'mwst');
+		return $folder;
+
+	}
+
+	public function to_german_number($data, $field) {
+
+		return array_map(function($set) {
+			$set['mwst'] = gnum($set['mwst'],2);
+			return $set; 
+		}, $data);
+
+	}
+
 	public function amount_by($field = 'type') {
 		$table = $this->db->table;
 		$SQLstatement = $this->db->connection->prepare(
@@ -186,48 +224,8 @@ class Folders extends Model
 		return $folder;
 	}
 
-
-	public function get_by_token($token) {
-		$table = $this->db->table;
-		$SQLstatement = $this->db->connection->prepare(
-			"SELECT * FROM $table WHERE `customertoken` = :token"
-		);
-
-		$SQLstatement->execute([':token' => $token]);
-		$folder = $SQLstatement->fetch() ?? null;
-		
-		if (empty($folder)) {return null;}
-
-		$folder['attachments'] = $this->get_attachments($folder['attachments']);
-		$folder['customer'] = json_decode($folder['customer'] ?? '', true);
-		$folder['fundings'] = json_decode($folder['fundings'] ?? '', true);
-		$folder['object'] = json_decode($folder['object'] ?? '', true);
-		$folder['usages'] = json_decode($folder['usages'] ?? '', true);
-		$folder['hull'] = json_decode($folder['hull'] ?? '', true);
-		$folder['renovation'] = json_decode($folder['renovation'] ?? '', true);
-
-		return $folder;
-
-	}
-
-	public function id_by_token($token) {
-		$table = $this->db->table;
-		$SQLstatement = $this->db->connection->prepare(
-			"SELECT id FROM $table WHERE `customertoken` = :token"
-		);
-
-		$SQLstatement->execute([':token' => $token]);
-		$folder = $SQLstatement->fetch();
-		return $folder['id'] ?? null;
-	}
-
-	public function customer_token() {
-		return CryptLib::generate_key(10,true);
-	}
-
 	private function json_fields_to_array(array $data) {
 		if (isset($data['customer'])) {$data['customer'] = json_decode($data['customer'],true);}
-		//if (isset($data['bank'])) {$data['bank'] = json_decode($data['bank'],true);}
 		return $data;
 	}
 

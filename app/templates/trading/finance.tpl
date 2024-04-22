@@ -5,7 +5,7 @@
 
 <div class="grid-3-col">
 <section class="box">
-	<h3>ETFs</h3>
+	<h3>Longterm (z.B. ETFs)</h3>
 	<div class="flex-fields">
 		<label class="slide">Invest
 			<input v-model="invest_etf" placeholder="ETF Anlage" type="text">
@@ -88,71 +88,71 @@
 
 <div class="box mt mb income-grid">
 <section>
-<h3>Gesamtkapital</h3>
-<table class="fancy wide">
-	<tr>
-		<td>Kapital Start:</td>
-		<td>{{gnum(total_invest)}}&nbsp;€</td>
-	</tr>	
-	<tr>
-		<td>Kapital nach 1 Jahr:</td>
-		<td>{{gnum(total_growth)}}&nbsp;€</td>
-	</tr>
-	<tr>
-		<td>Gesamt nach {{timeframe}} Jahren:</td>
-		<td>{{gnum((monthly_saving*12 * timeframe) + (total_invest + yearly_taxed * timeframe))}}&nbsp;€</td>
-	</tr>
-</table>
+	<h3>Laufendes Jahr</h3>
+	<table class="fancy wide">
+		<tr>
+			<td>Sparen / Jahr:</td>
+			<td>{{gnum(monthly_saving*12)}}&nbsp;€</td>
+		</tr>
+
+		<tr>
+			<td>Zinsen / Jahr:</td>
+			<td>{{gnum(yearly_total)}}&nbsp;€</td>
+		</tr>	
+		<tr>
+			<td>Zinsen / Monat:</td>
+			<td><b>{{gnum(monthly_total)}}&nbsp;€</b></td>
+		</tr>
+	</table>
 </section>
 
 <section>
-<h3>Zuwachs im Jahr (versteuert)</h3>
-<table class="fancy wide">
-	<tr>
-		<td>Spareinnahmen:</td>
-		<td>{{gnum(monthly_saving*12)}}&nbsp;€</td>
-	</tr>	
-	<tr>
-		<td>Zinseinnahmen:</td>
-		<td>{{gnum(yearly_taxed)}}&nbsp;€</td>
-	</tr>
-	<tr>
-		<td>Zinseinnahmen pro Monat:</td>
-		<td><b>{{gnum(monthly_taxed)}}&nbsp;€</b></td>
-	</tr>
-</table>
+	<h3>Kapitaldetails</h3>
+	<table class="fancy wide">
+		<tr>
+			<td>Kapital Start:</td>
+			<td>{{gnum(total_invest)}}&nbsp;€</td>
+		</tr>	
+
+		<tr>
+			<td>Kapital nach {{timeframe}} Jahren:</td>
+			<td><b>{{gnum(total_after_x_years)}}&nbsp;€</b></td>
+		</tr>
+
+	</table>
 </section>
 
 <section>
-<h3>Zuwachs nach {{timeframe}} Jahren</h3>
-<table class="fancy wide">
+	<h3>Gesamteinnahmen</h3>
+	<table class="fancy wide">
 
-	<tr>
-		<td>Spareinnahmen:</td>
-		<td>{{gnum(monthly_saving*12 * timeframe)}}&nbsp;€</td>
-	</tr>	
+		<tr>
+			<td>Spareinnahmen nach {{timeframe}} Jahren:</td>
+			<td>{{gnum(monthly_saving*12 * timeframe)}}&nbsp;€</td>
+		</tr>	
 
-	<tr>
-		<td>Zinseinnahmen:</td>
-		<td><b>{{gnum((yearly_taxed*timeframe))}}&nbsp;€</b></td>
-	</tr>
+		<tr>
+			<td>Zinseinnahmen nach {{timeframe}} Jahren:</td>
+			<td>{{gnum(interest_after_x_years)}}&nbsp;€</td>
+		</tr>
 
-</table>
+	</table>
 </section>
-
 
 <section class="last-grid">
-<h3>Zinsen ohne Steuern</h3>
-<table class="fancy wide">
-	<tr>
-		<td>Einnahmen/Jahr:</td>
-		<td>{{gnum(yearly_total)}}&nbsp;€</td>
-	</tr>	
-	<tr>
-		<td>Einnahmen/Monat:</td>
-		<td>{{gnum(monthly_total)}}&nbsp;€</td>
-	</tr>
-</table>
+	<h3>nach Laufzeit versteuert</h3>
+	<table class="fancy wide">
+		<tr>
+			<td>mit Rente pro Monat:</td>
+			<td>{{gnum(total_monthly_taxed_rent)}}&nbsp;€</td>
+		</tr>
+
+		<tr>
+			<td>Auszahlung pro Monat:</td>
+			<td><b>{{gnum(total_monthly_taxed)}}&nbsp;€</b></td>
+		</tr>
+
+	</table>
 </section>
 
 </div>
@@ -162,7 +162,8 @@
 <textarea class="notes-area" v-model="notes" placeholder="z.B. für Zwischenergebnisse"></textarea>
 </label>
 
-<section class="flex-fields">
+<section>
+	<div class="flex-fields">
 <label class="slide">Prognosejahre
 	<input v-model="timeframe" placeholder="Jahre" step="1" type="number">
 	<input v-model="timeframe" type="range" step="1" min="1" max="50">
@@ -171,18 +172,23 @@
 	<input v-model="monthly_saving" placeholder="Sparsumme" type="text">
 	<input v-model="monthly_saving" type="range" step="50" min="0" max="2000">
 </label>
+</div>
+
+<div class="flex-fields mt">
+<label class="slide">Basiszins
+	<input v-model="basic_interest_tax" placeholder="ca 2,55%" type="number">
+	<input v-model="basic_interest_tax" type="range" step="0.01" min="0" max="4">
+</label>
+
+<label class="slide">jetzige Rente
+	<input v-model="rent" placeholder="Rente" type="number">
+	<input v-model="rent" type="range" step="5" min="300" max="2500">
+</label>
 
 </section>
 
+
 </div>
-
-
-<hr>
-
-<form>
-<events-table class="mb"></events-table>
-</form>
-
 
 
 

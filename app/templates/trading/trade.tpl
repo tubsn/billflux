@@ -3,6 +3,10 @@
 <h2 class="fright">Gesamtkapital: {{gnum(final_savings)}} €</h2>
 <h1>Tradeflux - Trading</h1>
 
+<div>
+{{ bop }}
+</div>
+
 <div class="grid-2-col mb">
 <section class="box mb ">
 	<h3>Aktie</h3>
@@ -107,7 +111,7 @@
 <hr>
 
 <form>
-<events-table class="mb"></events-table>
+<events-table @selectone="highlightone" @selecttwo="highlighttwo" class="mb"></events-table>
 </form>
 
 </main>

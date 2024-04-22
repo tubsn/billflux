@@ -28,6 +28,42 @@ class Orders extends Model
 
 	}
 
+	public function hide($orderID) {
+
+		$table = $this->db->table;
+		$SQLstatement = $this->db->connection->prepare(
+			"UPDATE $table SET `hidden` = 1 WHERE id = :orderID"
+		);
+		$SQLstatement->execute([':orderID' => $orderID]);
+		$output = $SQLstatement->fetchAll();
+		return $output;
+
+	}
+
+	public function show($orderID) {
+
+		$table = $this->db->table;
+		$SQLstatement = $this->db->connection->prepare(
+			"UPDATE $table SET `hidden` = null WHERE id = :orderID"
+		);
+		$SQLstatement->execute([':orderID' => $orderID]);
+		$output = $SQLstatement->fetchAll();
+		return $output;
+
+	}
+
+	public function showAll() {
+
+		$table = $this->db->table;
+		$SQLstatement = $this->db->connection->prepare(
+			"UPDATE $table SET `hidden` = null"
+		);
+		$SQLstatement->execute();
+		$output = $SQLstatement->fetchAll();
+		return $output;
+	}
+
+
 	/*
 	public function category($category) {
 

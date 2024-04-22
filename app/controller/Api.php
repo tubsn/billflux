@@ -62,6 +62,14 @@ class Api extends Controller {
 		$this->Orders->delete($orderID);
 	}
 
+	public function hide_order($orderID) {
+		$this->Orders->hide($orderID);
+	}
+
+	public function show_orders() {
+		$this->Orders->showAll();
+	}
+
 	public function change_order($orderID) {
 		$status = $this->Orders->update($_POST, $orderID);
 		$this->view->json(['status' => $status]);
