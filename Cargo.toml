@@ -13,6 +13,7 @@ serde_json = "1"
 rusqlite = { version = "0.38", features = ["bundled"] }
 quick-xml = "0.42.0"
 chrono = "0.4.45"
+base64 = "0.22"
 
 
 rfd = { version = "0.16.0", default-features = false }

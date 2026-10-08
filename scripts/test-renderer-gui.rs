@@ -3,7 +3,7 @@
 use std::{fs,path::PathBuf,process::{Command,Stdio},os::windows::process::CommandExt,time::{Duration,SystemTime,UNIX_EPOCH}};
 fn check()->Result<String,String>{
     let root=std::env::current_dir().map_err(|e|e.to_string())?;
-    let chrome=std::env::var("BILLFLUX_RENDERER").map(PathBuf::from).unwrap_or_else(|_|root.join("dist/Billflux/vendor/chrome-headless-shell/chrome-headless-shell.exe"));
+    let chrome=std::env::var("BILLFLUX_RENDERER").map(PathBuf::from).unwrap_or_else(|_|root.join("dist/Billflux/bin/chrome-headless-shell/chrome-headless-shell.exe"));
     let source=std::env::args().nth(1).map(PathBuf::from).unwrap_or(root.join("dist/Billflux/preview/sample.html"));
     let id=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().to_string();
     let profile=std::env::temp_dir().join(format!("billflux-gui-test-{id}"));

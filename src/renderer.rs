@@ -73,6 +73,7 @@ pub fn prepare(chrome:&Path,html_path:&Path,profile:&Path,token:&str)->Result<St
                 "style.css"=>"text/css;charset=utf-8",
                 "fonts/Fira_Sans/FiraSans-Regular.ttf"|"fonts/Fira_Sans/FiraSans-Bold.ttf"|
                 "fonts/Fira_Sans_Condensed/FiraSansCondensed-Regular.ttf"|"fonts/Fira_Sans_Condensed/FiraSansCondensed-Bold.ttf"=>"font/ttf",
+                name if name.ends_with(".png") && name.chars().all(|c|c.is_ascii_alphanumeric()||matches!(c,'.'|'-'|'_'))=>"image/png",
                 _=>{reply(&mut stream,"404 Not Found","text/plain",b"")?;continue;},
             };
             match fs::read(folder.join(resource)) {

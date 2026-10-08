@@ -4,15 +4,15 @@ Das Zielprofil ist **EN 16931**. FeRD führt seit September 2026 [ZUGFeRD 2.5.2 
 
 ## Lokale Werkzeuge
 
-Beim Entwickeln liegen die Werkzeuge unter `.tools/` und sind nicht Teil des Quellcodes. Das Build-Skript kopiert die benötigten Laufzeitdateien in den portablen `vendor/`-Ordner neben der EXE:
+Beim Entwickeln liegen die Werkzeuge unter `.tools/` und sind nicht Teil des Quellcodes. Das Build-Skript kopiert die benötigten Laufzeitdateien in den portablen `bin/`-Ordner neben der EXE:
 
 - Portable [Temurin-JRE 11](https://api.adoptium.net/v3/binary/latest/11/ga/windows/x64/jre/hotspot/normal/eclipse) unter `.tools/jre11/<jre-verzeichnis>/bin/java.exe`.
 - [Mustang CLI 2.26.0](https://repo1.maven.org/maven2/org/mustangproject/Mustang-CLI/2.26.0/Mustang-CLI-2.26.0.jar) als `.tools/Mustang-CLI-2.26.0.jar`.
 - [Ghostscript 10.08.0](https://ghostscript.com/releases/) unter `.tools/gs/Library/bin/gswin64c.exe`. Die aktuelle lokale Testumgebung verwendet das Win-64-Paket von conda-forge.
 - Ghostscripts [PDF/A-Definitionsdatei](https://github.com/ArtifexSoftware/ghostpdl/blob/master/lib/PDFA_def.ps) als `.tools/PDFA_def.ps` und ein RGB-ICC-Profil als `.tools/srgb.icc`. Im lokalen Test wurde das Windows-sRGB-Profil verwendet.
-- [Chrome Headless Shell](https://developer.chrome.com/docs/automation-and-testing/headless-chrome-shell) für HTML zu PDF. `scripts/install-renderer.ps1` lädt die feste Version 154.0.8037.57 aus dem offiziellen Chrome-for-Testing-Archiv und prüft ihren SHA-256-Hash. Der portable Build legt sie unter `vendor/chrome-headless-shell/` ab; eine lokale Chrome-Installation wird nicht benötigt.
+- [Chrome Headless Shell](https://developer.chrome.com/docs/automation-and-testing/headless-chrome-shell) für HTML zu PDF. `scripts/install-renderer.ps1` lädt die feste Version 154.0.8037.57 aus dem offiziellen Chrome-for-Testing-Archiv und prüft ihren SHA-256-Hash. Der portable Build legt sie unter `bin/chrome-headless-shell/` ab; eine lokale Chrome-Installation wird nicht benötigt.
 
-Der Export in der Desktop-App erstellt zunächst PDF und XML unter `dist/Billflux/preview/`, wandelt die PDF mit Ghostscript in PDF/A-3 um, bettet die XML mit Mustang ein und validiert die fertige Datei. Nur wenn die drei Berichtswerte für PDF, XML und Gesamtergebnis jeweils `valid` sind, übernimmt Billflux PDF und Bericht nach `dist/Billflux/output/`.
+Der Export in der Desktop-App erstellt zunächst PDF und XML unter `dist/Billflux/preview/`, wandelt die PDF mit Ghostscript in PDF/A-3 um, bettet die XML mit Mustang ein und validiert die fertige Datei. Nur wenn die drei Berichtswerte für PDF, XML und Gesamtergebnis jeweils `valid` sind, übernimmt Billflux PDF und Bericht nach `dist/Billflux/logs/`.
 
 ## Ergebnis des Beispieltests
 

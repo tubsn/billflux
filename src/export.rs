@@ -93,8 +93,8 @@ pub fn create(
 }
 
 pub fn create_to(base:&Path,preview:&Path,pdf:&Path,xml:&Path,output_stem:&str,destination:Option<&Path>) -> Result<PathBuf,Box<dyn Error>> {
-    let tools = if base.join("vendor/Mustang-CLI-2.26.0.jar").is_file() {
-        base.join("vendor")
+    let tools = if base.join("bin/Mustang-CLI-2.26.0.jar").is_file() {
+        base.join("bin")
     } else {
         base.join(".tools")
     };
@@ -199,7 +199,7 @@ pub fn create_to(base:&Path,preview:&Path,pdf:&Path,xml:&Path,output_stem:&str,d
             .unwrap_or_else(|| "Bitte Prüfbericht ansehen".into());
         return Err(format!("PDF oder XML ist nicht valide: {detail} (Bericht: preview/validation.xml)").into());
     }
-    let output = base.join("output");
+    let output = base.join("logs");
     fs::create_dir_all(&output)?;
     let final_pdf = destination.map(Path::to_path_buf).unwrap_or_else(||output.join(format!("{output_stem}.pdf")));
     fs::copy(&candidate, &final_pdf)?;

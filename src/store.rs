@@ -23,6 +23,12 @@ fn base() -> Result<PathBuf,String> {
     let dir=exe.parent().ok_or("Programmverzeichnis fehlt")?;
     if dir.join("templates").is_dir(){Ok(dir.to_path_buf())} else {Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")))}
 }
+fn update_export_paths(conn:&Connection,old:&str,new:&str) -> Result<(),String> {
+    for field in ["pdf_path","report_path"] {
+        conn.execute(&format!("UPDATE invoices SET {field}=?2 || substr({field},length(?1)+1) WHERE substr({field},1,length(?1))=?1"),params![old,new]).map_err(|e|e.to_string())?;
+    }
+    Ok(())
+}
 fn db() -> Result<Connection,String> {
     let dir=base()?.join("database");std::fs::create_dir_all(&dir).map_err(|e|e.to_string())?;
     let path=dir.join("billflux.sqlite");
@@ -44,10 +50,12 @@ fn db() -> Result<Connection,String> {
         conn.execute_batch("BEGIN IMMEDIATE").map_err(|e|e.to_string())?;
         let old:Option<String>=conn.query_row("SELECT data FROM workspace WHERE id=1",[],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
         let mut draft:Workspace=old.as_ref().map(|s|serde_json::from_str(s)).transpose().map_err(|e|e.to_string())?.unwrap_or_default();
-        let template=if old.is_some(){"standard"}else{"example"};
+        let names=templates()?;
+        let preferred=if old.is_some(){"standard"}else{"example"};
+        let template=available_template(preferred,&names)?;
         conn.execute("INSERT INTO companies(data,template) VALUES(?1,?2)",params![serde_json::to_string(&draft.seller).map_err(|e|e.to_string())?,template]).map_err(|e|e.to_string())?;
         draft.company_id=conn.last_insert_rowid();
-        let pdf=base()?.join("output").join(format!("{}.pdf",draft.number));
+        let pdf=base()?.join("logs").join(format!("{}.pdf",draft.number));
         let status=if pdf.is_file(){"issued"}else{"draft"};
         conn.execute("INSERT INTO invoices(company_id,number,status,data,pdf_path) VALUES(?1,?2,?3,?4,?5)",params![draft.company_id,draft.number,status,serde_json::to_string(&draft).map_err(|e|e.to_string())?,if pdf.is_file(){pdf.display().to_string()}else{String::new()}]).map_err(|e|e.to_string())?;
         conn.execute("INSERT INTO app_state(id,active_id) VALUES(1,?1)",params![conn.last_insert_rowid()]).map_err(|e|e.to_string())?;
@@ -55,6 +63,10 @@ fn db() -> Result<Connection,String> {
         conn.execute_batch("COMMIT").map_err(|e|e.to_string())?;
     }
     conn.execute("INSERT OR IGNORE INTO selected_company(id,company_id) SELECT 1,company_id FROM invoices ORDER BY id DESC LIMIT 1",[]).map_err(|e|e.to_string())?;
+    let root=base()?;
+    if !root.join("output").exists() && root.join("logs").is_dir() {
+        update_export_paths(&conn,&root.join("output").display().to_string(),&root.join("logs").display().to_string())?;
+    }
     Ok(conn)
 }
 pub fn templates() -> Result<Vec<String>,String> {
@@ -65,10 +77,16 @@ pub fn templates() -> Result<Vec<String>,String> {
     }
     names.sort();Ok(names)
 }
+fn available_template(current:&str,names:&[String]) -> Result<String,String> {
+    if names.iter().any(|name|name==current){Ok(current.into())}
+    else{names.first().cloned().ok_or("Keine Rechnungsvorlage gefunden".into())}
+}
 pub fn company(id:i64) -> Result<Company,String> {
     let conn=db()?;
     let (data,template):(String,String)=conn.query_row("SELECT data,template FROM companies WHERE id=?1",params![id],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?;
-    Ok(Company{id,party:serde_json::from_str(&data).map_err(|e|e.to_string())?,template})
+    let selected=available_template(&template,&templates()?)?;
+    if selected!=template {conn.execute("UPDATE companies SET template=?1 WHERE id=?2",params![selected,id]).map_err(|e|e.to_string())?;}
+    Ok(Company{id,party:serde_json::from_str(&data).map_err(|e|e.to_string())?,template:selected})
 }
 pub fn settings(company_id:i64) -> Result<Settings,String> {
     let conn=db()?;
@@ -93,11 +111,10 @@ pub fn save_company_settings(company_id:i64,party:Party,value:Settings) -> Resul
     if party.name.trim().is_empty(){return Err("Firmenname fehlt".into());}
     let mut conn=db()?;
     let tx=conn.transaction().map_err(|e|e.to_string())?;
-    let template:String=tx.query_row("SELECT template FROM companies WHERE id=?1",params![company_id],|r|r.get(0)).map_err(|e|e.to_string())?;
     tx.execute("UPDATE companies SET data=?1 WHERE id=?2",params![serde_json::to_string(&party).map_err(|e|e.to_string())?,company_id]).map_err(|e|e.to_string())?;
     tx.execute("INSERT INTO company_settings(company_id,data) VALUES(?1,?2) ON CONFLICT(company_id) DO UPDATE SET data=excluded.data",params![company_id,serde_json::to_string(&value).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
     tx.commit().map_err(|e|e.to_string())?;
-    Ok(Company{id:company_id,party,template})
+    company(company_id)
 }
 pub fn select_company(company_id:i64) -> Result<(),String> {
     company(company_id)?;
@@ -113,9 +130,11 @@ pub fn save_customer(company_id:i64,party:Party) -> Result<Customer,String> {
 }
 pub fn load_app() -> Result<AppData,String> {
     let conn=db()?;
+    let names=templates()?;
     let mut stmt=conn.prepare("SELECT id,data,template FROM companies ORDER BY id").map_err(|e|e.to_string())?;
-    let companies=stmt.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?
-        .map(|row|{let(id,json,template)=row.map_err(|e|e.to_string())?;Ok(Company{id,party:serde_json::from_str(&json).map_err(|e|e.to_string())?,template})}).collect::<Result<Vec<_>,String>>()?;
+    let rows=stmt.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?
+        .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+    let companies=rows.into_iter().map(|(id,json,template)|{let selected=available_template(&template,&names)?;if selected!=template {conn.execute("UPDATE companies SET template=?1 WHERE id=?2",params![selected,id]).map_err(|e|e.to_string())?;} Ok(Company{id,party:serde_json::from_str(&json).map_err(|e|e.to_string())?,template:selected})}).collect::<Result<Vec<_>,String>>()?;
     let mut stmt=conn.prepare("SELECT id,company_id,number,status,data FROM invoices WHERE deleted_at IS NULL ORDER BY id DESC").map_err(|e|e.to_string())?;
     let records=stmt.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?))).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
     let invoices=records.iter().map(|(id,company_id,number,status,json)|{let d:Workspace=serde_json::from_str(json).map_err(|e|e.to_string())?;Ok(InvoiceRow{id:*id,company_id:*company_id,number:number.clone(),subject:d.subject,buyer:d.buyer.name,date:d.date,status:status.clone()})}).collect::<Result<Vec<_>,String>>()?;
@@ -130,7 +149,7 @@ pub fn load_app() -> Result<AppData,String> {
         workspace.invoice_id=current.0;workspace.company_id=current.1;
         (workspace,current.3.clone())
     }else{(new_invoice(active_company_id,&chrono::Local::now().format("%Y-%m-%d").to_string())?,"draft".into())};
-    Ok(AppData{workspace,companies,invoices,customers,templates:templates()?,settings:settings(active_company_id)?,active_company_id,status})
+    Ok(AppData{workspace,companies,invoices,customers,templates:names,settings:settings(active_company_id)?,active_company_id,status})
 }
 pub fn load() -> Result<Workspace,String>{Ok(load_app()?.workspace)}
 pub fn save(data:&Workspace) -> Result<Workspace,String> {
@@ -142,7 +161,7 @@ pub fn save(data:&Workspace) -> Result<Workspace,String> {
     if other.is_some(){return Err("Diese Rechnungsnummer ist bereits vergeben".into());}
     let previous:Option<String>=tx.query_row("SELECT number FROM invoices WHERE id=?1 AND deleted_at IS NULL",params![data.invoice_id],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
     if data.invoice_id>0 && previous.is_none(){return Err("Rechnung nicht gefunden".into());}
-    if previous.as_deref()!=Some(data.number.as_str()) && base()?.join("output").join(format!("{}.pdf",data.number)).is_file(){return Err("Zu dieser Rechnungsnummer existiert bereits eine PDF im Ausgabeordner".into());}
+    if previous.as_deref()!=Some(data.number.as_str()) && base()?.join("logs").join(format!("{}.pdf",data.number)).is_file(){return Err("Zu dieser Rechnungsnummer existiert bereits eine PDF im Ausgabeordner".into());}
     let mut saved=data.clone();
     if saved.invoice_id==0 {
         tx.execute("INSERT INTO invoices(company_id,number,status,data) VALUES(?1,?2,'draft',?3)",params![saved.company_id,saved.number,serde_json::to_string(&saved).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
@@ -158,7 +177,9 @@ pub fn create_company(name:String) -> Result<Company,String> {
     conn.execute("INSERT INTO companies(data) VALUES(?1)",params![serde_json::to_string(&party).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
     let id=conn.last_insert_rowid();
     let template=format!("firma-{id}");
-    let source=base()?.join("templates/standard");
+    let names=templates()?;
+    let source_name=if names.iter().any(|name|name=="standard"){"standard"}else{names.first().ok_or("Keine Rechnungsvorlage gefunden")?};
+    let source=base()?.join("templates").join(source_name);
     let destination=base()?.join("templates").join(&template);
     copy_template(&source,&destination)?;
     conn.execute("UPDATE companies SET template=?1 WHERE id=?2",params![template,id]).map_err(|e|e.to_string())?;
@@ -187,7 +208,7 @@ pub fn new_invoice(company_id:i64,date:&str) -> Result<Workspace,String> {
     let start=number_start(&preferences,date)?;
     let mut stmt=conn.prepare("SELECT number FROM invoices").map_err(|e|e.to_string())?;
     let mut used=stmt.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
-    let output=base()?.join("output");
+    let output=base()?.join("logs");
     if output.is_dir(){
         for entry in std::fs::read_dir(output).map_err(|e|e.to_string())?{
             let path=entry.map_err(|e|e.to_string())?.path();
@@ -215,6 +236,23 @@ pub fn mark_issued(id:i64,pdf:&str,report:&str) -> Result<(),String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn moving_output_to_logs_updates_saved_invoice_paths() {
+        let conn=Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE invoices(pdf_path TEXT,report_path TEXT);").unwrap();
+        conn.execute("INSERT INTO invoices VALUES(?1,?2)",params![r"D:\Billflux\output\RE-1.pdf",r"D:\Billflux\output\RE-1.validation.xml"]).unwrap();
+        update_export_paths(&conn,r"D:\Billflux\output",r"D:\Billflux\logs").unwrap();
+        let (pdf,report):(String,String)=conn.query_row("SELECT pdf_path,report_path FROM invoices",[],|row|Ok((row.get(0)?,row.get(1)?))).unwrap();
+        assert_eq!(pdf,r"D:\Billflux\logs\RE-1.pdf");
+        assert_eq!(report,r"D:\Billflux\logs\RE-1.validation.xml");
+    }
+    #[test]
+    fn missing_template_uses_first_available_theme() {
+        let names=vec!["artmessengers".into(),"example".into(),"tiefblau".into()];
+        assert_eq!(available_template("standard",&names).unwrap(),"artmessengers");
+        assert_eq!(available_template("tiefblau",&names).unwrap(),"tiefblau");
+        assert!(available_template("standard",&[]).is_err());
+    }
     #[test]
     #[ignore = "benötigt BILLFLUX_EXPORT_TEST_DB"]
     fn migrates_existing_database_copy() {
@@ -312,8 +350,8 @@ mod tests {
         assert!(save(&saved).is_ok());
         assert_eq!(load_app().unwrap().status,"issued");
         let mut edited=saved.clone();edited.subject="Bearbeitet".into();
-        std::fs::create_dir_all(root.join("output")).unwrap();
-        std::fs::write(root.join("output").join(format!("{}.pdf",edited.number)),"old export").unwrap();
+        std::fs::create_dir_all(root.join("logs")).unwrap();
+        std::fs::write(root.join("logs").join(format!("{}.pdf",edited.number)),"old export").unwrap();
         save(&edited).unwrap();
         assert_eq!(open_invoice(edited.invoice_id).unwrap().subject,"Bearbeitet");
         assert_eq!(load_app().unwrap().status,"draft");

@@ -1,6 +1,7 @@
 use crate::{draft, export, model, store, view, xml};
 use serde::Serialize;
 use chrono::{Duration,NaiveDate};
+use base64::Engine;
 use std::{fs, path::{Path, PathBuf}, process::Command};
 
 #[cfg(windows)]
@@ -16,7 +17,7 @@ fn base_dir() -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var("BILLFLUX_TEST_BASE") { return Ok(PathBuf::from(path)); }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let folder = exe.parent().ok_or("Programmverzeichnis fehlt")?;
-    if folder.join("templates/standard/invoice.html").is_file() { Ok(folder.to_path_buf()) }
+    if folder.join("templates").is_dir() { Ok(folder.to_path_buf()) }
     else { Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))) }
 }
 
@@ -66,6 +67,13 @@ fn validate(data: &draft::Workspace) -> Result<(), String> {
 
 fn copy_assets(base: &Path, template_dir: &Path, preview: &Path) -> Result<(), String> {
     fs::copy(template_dir.join("style.css"), preview.join("style.css")).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(template_dir).map_err(|e| e.to_string())? {
+        let entry=entry.map_err(|e| e.to_string())?;
+        let path=entry.path();
+        if path.is_file() && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("png")) {
+            fs::copy(&path,preview.join(entry.file_name())).map_err(|e| e.to_string())?;
+        }
+    }
     for (family, names) in [
         ("Fira_Sans", ["FiraSans-Regular.ttf", "FiraSans-Bold.ttf"]),
         ("Fira_Sans_Condensed", ["FiraSansCondensed-Regular.ttf", "FiraSansCondensed-Bold.ttf"]),
@@ -107,7 +115,7 @@ pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Res
     let template_name=store::company(data.company_id)?.template;
     if !store::templates()?.contains(&template_name){return Err("Die Vorlage dieser Firma wurde nicht gefunden".into());}
     let template_dir=base.join("templates").join(&template_name);
-    let output=base.join("output");
+    let output=base.join("logs");
     fs::create_dir_all(&output).map_err(|e| e.to_string())?;
     let pdf=destination.clone().unwrap_or_else(||output.join(format!("{}.pdf",data.number)));
     let report=output.join(format!("{}.validation.xml",data.number));
@@ -124,7 +132,7 @@ pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Res
     fs::write(&html_path,view::html(&finalized,&template)).map_err(|e| e.to_string())?;
     fs::write(&xml_path,xml::render(&finalized)).map_err(|e| e.to_string())?;
     copy_assets(&base,&template_dir,&preview)?;
-    let bundled=base.join("vendor/chrome-headless-shell/chrome-headless-shell.exe");
+    let bundled=base.join("bin/chrome-headless-shell/chrome-headless-shell.exe");
     let local=base.join(".tools/chrome-headless-shell/chrome-headless-shell-win64/chrome-headless-shell.exe");
     let chrome=if bundled.is_file(){bundled}else{local};
     if !chrome.is_file() { return Err("Chrome Headless Shell für die PDF-Erstellung fehlt".into()); }
@@ -174,7 +182,7 @@ mod tests {
     fn exports_invoice_fixture() {
         let source = std::env::var("BILLFLUX_TEST_INVOICE").unwrap();
         let workspace: draft::Workspace = serde_json::from_str(&fs::read_to_string(source).unwrap()).unwrap();
-        let destination = base_dir().unwrap().join("output/verified.pdf");
+        let destination = base_dir().unwrap().join("logs/verified.pdf");
         let result = create_to(workspace, Some(destination)).unwrap();
         assert!(Path::new(&result.pdf_path).is_file());
         assert!(Path::new(&result.report_path).is_file());
@@ -226,7 +234,7 @@ mod tests {
         let output=String::from_utf8_lossy(&info.stdout);
         let pages:usize=output.lines().find_map(|line|line.strip_prefix("Pages:")).unwrap().trim().parse().unwrap();
         assert!(pages>1,"lange Positionen sollen auf mehrere Seiten fließen");
-        let tools=if base_dir().unwrap().join("vendor/gs").is_dir(){base_dir().unwrap().join("vendor")}else{base_dir().unwrap().join(".tools")};
+        let tools=if base_dir().unwrap().join("bin/gs").is_dir(){base_dir().unwrap().join("bin")}else{base_dir().unwrap().join(".tools")};
         let mut last_page=Command::new(tools.join("gs/Library/bin/gswin64c.exe"));
         last_page.args(["-q","-dNOPAUSE","-dBATCH","-sDEVICE=txtwrite","-sOutputFile=-"])
             .arg(format!("-dFirstPage={pages}")).arg(format!("-dLastPage={pages}")).arg(&result.pdf_path);
@@ -260,7 +268,7 @@ mod tests {
         let info=Command::new("pdfinfo").arg(&result.pdf_path).output().unwrap();
         let pages:usize=String::from_utf8_lossy(&info.stdout).lines().find_map(|line|line.strip_prefix("Pages:")).unwrap().trim().parse().unwrap();
         assert!(pages>1);
-        let tools=if base_dir().unwrap().join("vendor/gs").is_dir(){base_dir().unwrap().join("vendor")}else{base_dir().unwrap().join(".tools")};
+        let tools=if base_dir().unwrap().join("bin/gs").is_dir(){base_dir().unwrap().join("bin")}else{base_dir().unwrap().join(".tools")};
         let mut last_page=Command::new(tools.join("gs/Library/bin/gswin64c.exe"));
         last_page.args(["-q","-dNOPAUSE","-dBATCH","-sDEVICE=txtwrite","-sOutputFile=-"])
             .arg(format!("-dFirstPage={pages}")).arg(format!("-dLastPage={pages}")).arg(&result.pdf_path);
@@ -314,5 +322,15 @@ pub fn preview_template(data:draft::Workspace,template_name:String) -> Result<St
     let css=fs::read_to_string(template_dir.join("style.css")).map_err(|e|e.to_string())?
         .replace("fonts/Fira_Sans/FiraSans", "fonts/FiraSans")
         .replace("fonts/Fira_Sans_Condensed/FiraSansCondensed", "fonts/FiraSansCondensed");
-    Ok(view::html(&totals,&template).replace(r#"<link rel="stylesheet" href="style.css">"#,&format!("<style>{css}</style>")))
+    let mut html=view::html(&totals,&template).replace(r#"<link rel="stylesheet" href="style.css">"#,&format!("<style>{css}</style>"));
+    for entry in fs::read_dir(&template_dir).map_err(|e|e.to_string())? {
+        let entry=entry.map_err(|e|e.to_string())?;
+        let path=entry.path();
+        if path.is_file() && path.extension().is_some_and(|ext|ext.eq_ignore_ascii_case("png")) {
+            let name=entry.file_name().to_string_lossy().into_owned();
+            let encoded=base64::engine::general_purpose::STANDARD.encode(fs::read(&path).map_err(|e|e.to_string())?);
+            html=html.replace(&format!("src=\"{name}\""),&format!("src=\"data:image/png;base64,{encoded}\""));
+        }
+    }
+    Ok(html)
 }

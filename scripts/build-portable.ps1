@@ -29,22 +29,25 @@ try {
 
 foreach ($directory in @(
     $bundle,
-    (Join-Path $bundle 'templates\standard\fonts\Fira_Sans'),
-    (Join-Path $bundle 'templates\standard\fonts\Fira_Sans_Condensed'),
-    (Join-Path $bundle 'templates\example\fonts\Fira_Sans'),
-    (Join-Path $bundle 'templates\example\fonts\Fira_Sans_Condensed'),
-    (Join-Path $bundle 'vendor\gs'),
-    (Join-Path $bundle 'vendor\jre11'),
-    (Join-Path $bundle 'vendor\chrome-headless-shell'),
+    (Join-Path $bundle 'templates'),
+    (Join-Path $bundle 'bin\gs'),
+    (Join-Path $bundle 'bin\jre11'),
+    (Join-Path $bundle 'bin\chrome-headless-shell'),
     (Join-Path $bundle 'database'),
-    (Join-Path $bundle 'output')
+    (Join-Path $bundle 'logs')
 )) { New-Item -ItemType Directory -Force -Path $directory | Out-Null }
 
 Copy-Item -LiteralPath (Join-Path $project 'target\release\billflux.exe') -Destination (Join-Path $bundle 'Billflux.exe') -Force
 $oldCli = Join-Path $bundle 'Billflux-CLI.exe'
 if (Test-Path -LiteralPath $oldCli) { Remove-Item -LiteralPath $oldCli -Force }
 
-foreach ($template in @('standard', 'example')) {
+$existingTemplates = @(Get-ChildItem -LiteralPath (Join-Path $bundle 'templates') -Directory | Where-Object {
+    (Test-Path -LiteralPath (Join-Path $_.FullName 'invoice.html')) -and
+    (Test-Path -LiteralPath (Join-Path $_.FullName 'style.css'))
+})
+$seedTemplates = if ($existingTemplates.Count -eq 0) { @('standard', 'example') } else { @() }
+foreach ($template in $seedTemplates) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $bundle "templates\$template") | Out-Null
     foreach ($file in @('invoice.html', 'style.css')) {
         $source = Join-Path $project "templates\$template\$file"
         $destination = Join-Path $bundle "templates\$template\$file"
@@ -54,10 +57,11 @@ foreach ($template in @('standard', 'example')) {
     }
 }
 
-foreach ($template in @('standard', 'example')) {
+foreach ($template in $seedTemplates) {
     foreach ($family in @('Fira_Sans', 'Fira_Sans_Condensed')) {
         $source = Join-Path $project "fonts\$family"
         $destination = Join-Path $bundle "templates\$template\fonts\$family"
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
         foreach ($file in @('OFL.txt')) {
             $target = Join-Path $destination $file
             if (-not (Test-Path -LiteralPath $target)) {
@@ -73,19 +77,19 @@ foreach ($template in @('standard', 'example')) {
     }
 }
 
-Copy-Item -LiteralPath (Join-Path $tools 'Mustang-CLI-2.26.0.jar') -Destination (Join-Path $bundle 'vendor') -Force
-Copy-Item -LiteralPath (Join-Path $tools 'PDFA_def.ps') -Destination (Join-Path $bundle 'vendor') -Force
-Copy-Item -LiteralPath (Join-Path $tools 'srgb.icc') -Destination (Join-Path $bundle 'vendor') -Force
-Copy-Item -LiteralPath (Join-Path $tools 'gs\Library') -Destination (Join-Path $bundle 'vendor\gs') -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $tools 'Mustang-CLI-2.26.0.jar') -Destination (Join-Path $bundle 'bin') -Force
+Copy-Item -LiteralPath (Join-Path $tools 'PDFA_def.ps') -Destination (Join-Path $bundle 'bin') -Force
+Copy-Item -LiteralPath (Join-Path $tools 'srgb.icc') -Destination (Join-Path $bundle 'bin') -Force
+Copy-Item -LiteralPath (Join-Path $tools 'gs\Library') -Destination (Join-Path $bundle 'bin\gs') -Recurse -Force
 Get-ChildItem -LiteralPath (Join-Path $tools 'jre11') -Directory | ForEach-Object {
-    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'vendor\jre11') -Recurse -Force
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'bin\jre11') -Recurse -Force
 }
-$rendererDestination = Join-Path $bundle 'vendor\chrome-headless-shell'
+$rendererDestination = Join-Path $bundle 'bin\chrome-headless-shell'
 Get-ChildItem -LiteralPath $renderer -Force | Copy-Item -Destination $rendererDestination -Recurse -Force
 if (-not (Test-Path -LiteralPath (Join-Path $rendererDestination 'chrome-headless-shell.exe') -PathType Leaf)) {
     throw 'Chrome Headless Shell fehlt in der Distribution'
 }
-$oldChrome = Join-Path $bundle 'vendor\chrome'
+$oldChrome = Join-Path $bundle 'bin\chrome'
 if (-not ([IO.Path]::GetFullPath($oldChrome)).StartsWith(([IO.Path]::GetFullPath($bundle)).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Ungültiger Chrome-Zielpfad'
 }
