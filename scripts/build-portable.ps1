@@ -38,6 +38,9 @@ foreach ($directory in @(
 )) { New-Item -ItemType Directory -Force -Path $directory | Out-Null }
 
 Copy-Item -LiteralPath (Join-Path $project 'target\release\billflux.exe') -Destination (Join-Path $bundle 'Billflux.exe') -Force
+Copy-Item -LiteralPath (Join-Path $project 'LICENSE.md') -Destination (Join-Path $bundle 'LICENSE.md') -Force
+New-Item -ItemType Directory -Force -Path (Join-Path $bundle 'licenses') | Out-Null
+Copy-Item -LiteralPath (Join-Path $project 'licenses\AGPL-3.0.txt') -Destination (Join-Path $bundle 'licenses\AGPL-3.0.txt') -Force
 $oldCli = Join-Path $bundle 'Billflux-CLI.exe'
 if (Test-Path -LiteralPath $oldCli) { Remove-Item -LiteralPath $oldCli -Force }
 
