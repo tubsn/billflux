@@ -2,6 +2,8 @@
 
 Billflux is a portable Windows desktop application for creating and managing invoices. It uses Rust and Tauri, stores data locally, and generates PDFs with embedded ZUGFeRD/Factur-X invoice XML.
 
+![Billflux-Screenshot](billflux-screenshot.png)
+
 ## Features
 
 - Manage companies, customers, drafts, and issued invoices in a local SQLite database.
