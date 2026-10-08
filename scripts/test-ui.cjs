@@ -1,0 +1,117 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const {pathToFileURL}=require('node:url');
+const path=require('node:path');
+(async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:900}});
+ const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+ await page.goto(pathToFileURL(path.resolve(__dirname,'../desktop/ui/index.html')).href);
+ await page.waitForFunction(()=>document.getElementById('save-status').textContent==='Entwurf');
+ await page.locator('[data-page=settings]').click();
+ assert.equal(await page.locator('.manage-firms').count(),0);
+ assert.deepEqual(await page.locator('#settings-page h2').allTextContents(),['Voreinstellungen','Bankverbindung','Firmendaten']);
+ assert.equal(await page.locator('header #save-settings').count(),0);
+ assert(await page.locator('[data-path="seller.name"]').isVisible());
+ assert(await page.locator('[data-path="seller.economic_id"]').isVisible());
+ assert.equal(await page.locator('[data-path="seller.name"]').inputValue(),'artMessengers.de');
+ assert(await page.locator('header #create-company-button').isVisible());
+ await page.locator('#company-switch').click();await page.locator('#page-title').click();
+ assert(await page.locator('#company-popup').isHidden());
+ assert.equal(await page.locator('#company-switch').getAttribute('aria-expanded'),'false');
+ await page.locator('[data-page=settings]').click();assert(await page.locator('[data-setting=next_invoice_number]').isVisible());
+ await page.evaluate(()=>{appData.invoices=[{id:1,company_id:1,number:'RE-42',subject:'Other',buyer:'Other'},{id:2,company_id:1,number:'RE-2',subject:'42 project',buyer:'Other'},{id:3,company_id:1,number:'RE-3',subject:'Other',buyer:'42 customer'}];});
+ await page.locator('[data-page=invoices]').click();await page.locator('#search-input').fill('42');
+ assert.deepEqual(await page.locator('#invoice-list [data-open]').evaluateAll(rows=>rows.map(row=>row.dataset.open)),['1','2','3']);
+ await page.evaluate(()=>showPage('invoice'));
+ assert.equal(await page.locator('.preview-title').count(),0);
+ assert(!(await page.locator('#preview').innerText()).includes('Fällig:'));
+ assert(!(await page.locator('#preview').innerText()).includes('bis zum'));
+ await page.evaluate(()=>{data.payment_reference_prefix='AM';data.number='2026-42062';preview();});
+ assert((await page.locator('#preview').innerText()).includes('Verwendung: AM 2026-42062'));
+ await page.locator('#toggle-invoice-fields').click();await page.locator('[data-path=due_date]').fill('2026-12-31');
+ assert((await page.locator('#preview').innerText()).includes('Fällig: 2026-12-31'));
+ await page.locator('[data-path=due_date]').fill('');
+ assert.equal(await page.locator('[data-page=search]').count(),0);
+ assert(await page.locator('[data-path="buyer.email"]').isHidden());
+ await page.locator('#toggle-customer-fields').click();
+ assert(await page.locator('[data-path="buyer.email"]').isVisible());
+ assert(await page.locator('[data-path="buyer.country"]').isVisible());
+ await page.locator('#toggle-customer-fields').click();
+ assert(await page.locator('[data-path="buyer.email"]').isHidden());
+ for(const [a,b] of [['number','date'],['buyer.street','buyer.city']]){
+  const first=await page.locator(`[data-path="${a}"]`).boundingBox(),second=await page.locator(`[data-path="${b}"]`).boundingBox();
+  assert.equal(first.y,second.y);assert(second.x>first.x);
+ }
+ await page.locator('#export-button').click();
+ assert(await page.locator('#export-result.error').isVisible());
+ assert((await page.locator('#export-result').innerText()).includes('Kundenname fehlt'));
+ await page.locator('[data-path="buyer.name"]').fill('Customer');
+ assert(await page.locator('#export-result').isHidden());
+ await page.locator('#export-button').click();
+ assert(await page.locator('#export-result.error').isVisible());
+ await page.locator('[data-page=invoices]').click();
+ assert(await page.locator('#export-result').isHidden());
+ await page.evaluate(()=>{appData.status='issued';syncUi();showPage('invoice');});
+ assert(await page.locator('[data-path="subject"]').isEnabled());
+ assert(await page.locator('#export-button').isEnabled());
+ await page.locator('[data-path="subject"]').fill('Edited issued invoice');
+ assert(await page.evaluate(()=>dirty));
+ await page.locator('[data-key=quantity]').fill('1,5');
+ await page.locator('[data-key=unit_price_cents]').fill('85');
+ assert.equal(await page.evaluate(()=>data.items[0].quantity),1.5);
+ assert.equal(await page.evaluate(()=>totals.net_cents),12750);
+ assert((await page.locator('#preview').innerText()).includes('1,5 h'));
+ await page.locator('[data-key=unit]').selectOption('Tage');await page.locator('[data-key=quantity]').fill('1');
+ assert((await page.locator('#preview').innerText()).includes('1 Tag'));
+ await page.locator('[data-key=quantity]').fill('2');assert((await page.locator('#preview').innerText()).includes('2 Tage'));
+ await page.evaluate(()=>{appData.settings.hourly_rate_cents=9550;});
+ const existingPrice=await page.locator('[data-key=unit_price_cents]').inputValue();
+ await page.locator('#add-item').click();
+ assert.equal(await page.locator('[data-item="1"][data-key=unit_price_cents]').inputValue(),'95.50');
+ assert.equal(await page.locator('[data-item="0"][data-key=unit_price_cents]').inputValue(),existingPrice);
+ await page.locator('[data-remove="1"]').click();
+ for(const [width,columns] of [[1920,4],[1440,2],[800,2]]){
+  await page.setViewportSize({width,height:900});
+  assert.equal(await page.locator('.item-fields').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),columns);
+ }
+ assert.equal(await page.locator('[data-open-date]').count(),0);
+ assert.equal(await page.locator('[data-path=service_date]').getAttribute('type'),'date');
+ await page.locator('[data-page=settings]').click();
+ assert.equal(await page.locator('[data-setting=hourly_rate_cents]').inputValue(),'95,50');
+ await page.setViewportSize({width:1440,height:900});
+ const create=await page.locator('#create-company-button').boundingBox();assert(create.width>0);
+ await page.locator('[data-setting=subject_prefix]').fill('Honorar');
+ await page.waitForFunction(()=>appData.settings.subject_prefix==='Honorar');
+ await page.locator('[data-company-address=postal_code]').fill('03042');
+ await page.locator('[data-company-address=locality]').fill('Cottbus');
+ await page.waitForFunction(()=>companyDraft.party.city==='03042 Cottbus');
+ await page.locator('#create-company-button').click();assert(await page.locator('#create-company-dialog').isVisible());
+ await page.locator('[data-close-dialog="create-company-dialog"]').click();
+ assert(await page.locator('#settings-page').evaluate(el=>el.offsetWidth>1000));
+ await page.evaluate(()=>showPage('invoice'));
+ await page.locator('[data-key=description]').fill('First');
+ await page.locator('#add-item').click();await page.locator('[data-item="1"][data-key=description]').fill('Second');
+ await page.locator('[data-drag="0"]').dragTo(page.locator('.item-card[data-index="1"]'));
+ assert.deepEqual(await page.evaluate(()=>data.items.map(item=>item.description)),['Second','First']);
+ await page.locator('[data-drag="0"]').focus();await page.keyboard.press('ArrowDown');
+ assert.deepEqual(await page.evaluate(()=>data.items.map(item=>item.description)),['First','Second']);
+ await page.locator('[data-remove="1"]').click();
+ await page.locator('[data-page=invoices]').click();await page.locator('[data-page=customers]').click();
+ await page.goBack();await page.waitForFunction(()=>page==='invoices');
+ await page.goBack();await page.waitForFunction(()=>page==='invoice');
+ await page.goForward();await page.waitForFunction(()=>page==='invoices');
+ await page.keyboard.press('Alt+ArrowRight');await page.waitForFunction(()=>page==='customers');
+ await page.locator('[data-page=settings]').click();assert.equal(await page.locator('#save-status').innerText(),'');
+ await page.evaluate(()=>showPage('invoice'));
+ await page.evaluate(()=>{appData.invoices=Array.from({length:20},(_,i)=>({id:i+1,company_id:1,number:'RE-'+i}));appData.settings.recent_count=20;renderMenu();window.scrollTo(0,document.body.scrollHeight);});
+ for(const height of [900,650]){
+   await page.setViewportSize({width:1440,height});
+   for(const selector of ['#company-switch','.sidebar nav']){
+     const box=await page.locator(selector).boundingBox();assert(box.y>=0&&box.y+box.height<=height,selector+' within viewport');
+   }
+ }
+ assert.deepEqual(errors,[]);
+ await browser.close();console.log('UI regression checks passed: company page, settings, ranked search, decimals, units, sticky menu, combined settings, hourly rate, responsive item columns.');
+})().catch(e=>{console.error(e);process.exit(1)});
+

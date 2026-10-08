@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Billflux",
+  "version": "0.1.0",
+  "identifier": "de.artmessengers.billflux",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Billflux",
+        "width": 1500,
+        "height": 950,
+        "minWidth": 1050,
+        "minHeight": 720,
+        "backgroundColor": "#f5f7f9",
+        "dragDropEnabled": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": false,
+    "icon": []
+  }
+}

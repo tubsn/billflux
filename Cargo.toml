@@ -1,0 +1,12 @@
+[package]
+name = "billflux-prototype"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quick-xml = "0.42.0"
+chrono = "0.4.45"
+
+[[bin]]
+name = "billflux-prototype"
+path = "src/main.rs"

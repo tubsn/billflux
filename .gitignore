@@ -1,0 +1,23 @@
+# Rust und Tauri: Build-Ausgaben und erzeugte Schemas
+/target/
+/desktop/target/
+/desktop/gen/
+
+# Lokal installierte Werkzeuge und Abhaengigkeiten
+/.tools/
+/vendor/
+**/node_modules/
+
+# Lokale Rechnungsdaten, Exporte und Zwischenstaende
+/database/
+/output/
+/preview/
+/tmp/
+/dist/
+
+# Lokale Konfiguration und Betriebssystemdateien
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
