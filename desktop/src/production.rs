@@ -81,6 +81,7 @@ fn copy_assets(base: &Path, template_dir: &Path, preview: &Path) -> Result<(), S
     Ok(())
 }
 
+#[cfg(test)]
 pub fn create(data: draft::Workspace) -> Result<ExportResult, String> { create_to(data,None) }
 
 pub fn validate_export(data:&draft::Workspace) -> Result<(),String> {
@@ -116,10 +117,7 @@ pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Res
     let mut invoice=invoice(data);
     invoice.show_due_date=show_due_date;
     let finalized=invoice.finalize()?;
-    let mut template=fs::read_to_string(template_dir.join("invoice.html")).map_err(|e| e.to_string())?;
-    if template_name.starts_with("firma-") {
-        template=template.replace("<div class=\"wordmark\"><span>art</span>Messengers.de</div>","<div class=\"wordmark\">{{seller_name}}</div>");
-    }
+    let template=fs::read_to_string(template_dir.join("invoice.html")).map_err(|e| e.to_string())?;
     let html_path=preview.join("current.html");
     let xml_path=preview.join("current.xml");
     let pdf_path=preview.join("current.pdf");
@@ -301,8 +299,13 @@ mod tests {
 
 
 pub fn preview_document(data:draft::Workspace) -> Result<String,String> {
+    let template=store::company(data.company_id)?.template;
+    preview_template(data,template)
+}
+
+pub fn preview_template(data:draft::Workspace,template_name:String) -> Result<String,String> {
     let base=base_dir()?;
-    let template_name=store::company(data.company_id)?.template;
+    if !store::templates()?.contains(&template_name){return Err("Vorlage nicht gefunden".into());}
     let template_dir=base.join("templates").join(&template_name);
     let invoice=invoice(data);
     let totals=invoice.finalize()?;

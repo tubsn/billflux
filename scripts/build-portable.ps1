@@ -31,6 +31,8 @@ foreach ($directory in @(
     $bundle,
     (Join-Path $bundle 'templates\standard\fonts\Fira_Sans'),
     (Join-Path $bundle 'templates\standard\fonts\Fira_Sans_Condensed'),
+    (Join-Path $bundle 'templates\example\fonts\Fira_Sans'),
+    (Join-Path $bundle 'templates\example\fonts\Fira_Sans_Condensed'),
     (Join-Path $bundle 'vendor\gs'),
     (Join-Path $bundle 'vendor\jre11'),
     (Join-Path $bundle 'vendor\chrome'),
@@ -42,14 +44,18 @@ Copy-Item -LiteralPath (Join-Path $project 'desktop\target\release\billflux-desk
 Copy-Item -LiteralPath (Join-Path $project 'target\release\billflux-prototype.exe') -Destination (Join-Path $bundle 'Billflux-CLI.exe') -Force
 Copy-Item -LiteralPath (Join-Path $project 'templates\standard\invoice.html') -Destination (Join-Path $bundle 'templates\standard\invoice.html') -Force
 Copy-Item -LiteralPath (Join-Path $project 'templates\standard\style.css') -Destination (Join-Path $bundle 'templates\standard\style.css') -Force
+Copy-Item -LiteralPath (Join-Path $project 'templates\example\invoice.html') -Destination (Join-Path $bundle 'templates\example\invoice.html') -Force
+Copy-Item -LiteralPath (Join-Path $project 'templates\example\style.css') -Destination (Join-Path $bundle 'templates\example\style.css') -Force
 
+foreach ($template in @('standard', 'example')) {
 foreach ($family in @('Fira_Sans', 'Fira_Sans_Condensed')) {
     $source = Join-Path $project "fonts\$family"
-    $destination = Join-Path $bundle "templates\standard\fonts\$family"
+    $destination = Join-Path $bundle "templates\$template\fonts\$family"
     Copy-Item -LiteralPath (Join-Path $source 'OFL.txt') -Destination $destination -Force
     Get-ChildItem -LiteralPath $source -File | Where-Object { $_.Name -match '(-Regular|-Bold)\.ttf$' } | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
     }
+}
 }
 
 Copy-Item -LiteralPath (Join-Path $tools 'Mustang-CLI-2.26.0.jar') -Destination (Join-Path $bundle 'vendor') -Force

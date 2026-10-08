@@ -42,6 +42,8 @@ fn open_invoice(id:i64) -> Result<draft::Workspace,String> { store::open_invoice
 #[tauri::command]
 fn preview_invoice(workspace:draft::Workspace) -> Result<String,String> { production::preview_document(workspace) }
 #[tauri::command]
+fn preview_template(workspace:draft::Workspace,template:String) -> Result<String,String> { production::preview_template(workspace,template) }
+#[tauri::command]
 fn calculate(workspace: draft::Workspace) -> Result<draft::Totals, String> {
     draft::calculate(&workspace)
 }
@@ -63,7 +65,7 @@ async fn export_invoice(window: tauri::Window, workspace: draft::Workspace) -> R
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_workspace, load_app, select_company, save_settings, save_company_settings, save_customer, update_customer, duplicate_invoice, delete_invoice, save_workspace, create_company, save_company, new_invoice, open_invoice, preview_invoice, calculate, export_invoice])
+        .invoke_handler(tauri::generate_handler![load_workspace, load_app, select_company, save_settings, save_company_settings, save_customer, update_customer, duplicate_invoice, delete_invoice, save_workspace, create_company, save_company, new_invoice, open_invoice, preview_invoice, preview_template, calculate, export_invoice])
         .run(tauri::generate_context!())
         .expect("Billflux konnte nicht gestartet werden");
 }

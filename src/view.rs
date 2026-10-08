@@ -45,7 +45,7 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
     let invoice_heading=if invoice.invoice.subject.trim().is_empty(){heading_start}else{format!("{} - {}",heading_start,invoice.invoice.subject.trim())};
     let country_prefix=match invoice.invoice.seller.country.trim().to_uppercase().as_str(){"DE"|"DEU"|"DEUTSCHLAND"=>"D".to_string(),country=>country.to_string()};
     let seller_postal_city=if country_prefix.is_empty()||invoice.invoice.seller.city.trim().is_empty(){invoice.invoice.seller.city.clone()}else{format!("{}-{}",country_prefix,invoice.invoice.seller.city.trim())};
-    template
+    let html=template
         .replace("<footer><div>{{seller_name}}<br>{{seller_street}}<br>{{seller_city}}</div>","<footer><div>{{sender_name}}<br>{{seller_street}}<br>{{seller_postal_city}}</div>")
         .replace("<div>Inhaber: {{account_holder}}<br>Verwendung: {{payment_reference}}<br>IBAN: {{iban}}{{bic_line}}</div></footer>","<div>{{bank_name}}<br>IBAN: {{iban}}{{bic_line}}</div></footer>")
         .replace("{{bic_entry}}</dl>","</dl>")
@@ -98,7 +98,8 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
         .replace("{{rows}}", &rows)
         .replace("{{net}}", &display_money(invoice.net_cents))
         .replace("{{tax_rows}}", &tax_rows)
-        .replace("{{gross}}", &display_money(invoice.gross_cents))
+        .replace("{{gross}}", &display_money(invoice.gross_cents));
+    html.replace("</body>", &format!("<script>{}</script></body>",include_str!("pagination.js")))
 }
 
 #[cfg(test)]

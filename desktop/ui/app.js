@@ -3,8 +3,8 @@ const euro = cents => new Intl.NumberFormat('de-DE', {style:'currency',currency:
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const emptyParty = () => ({name:'',alternative_name:'',contact:'',street:'',city:'',country:'DE',email:'',phone:'',website:'',tax_number:'',vat_id:'',economic_id:''});
 const newItem = () => ({description:'',detail:'',quantity:1,unit:'Stunden',unit_price_cents:appData.settings?.hourly_rate_cents||0,vat_percent:19});
-const defaultData = () => ({seller:{...emptyParty(),name:'artMessengers.de'},buyer:emptyParty(),number:new Date().getFullYear()+'-0001',payment_reference_prefix:'',payment_reference:'',customer_id:0,date:new Date().toISOString().slice(0,10),service_date:'',due_date:'',subject:'',subject_prefix:appData?.settings?.subject_prefix??'Rechnung',account_holder:'',iban:'',bic:'',bank_name:'',payment_note:'Ich bedanke mich für die Zusammenarbeit.',items:[newItem()]});
-let appData = {companies:[],invoices:[],customers:[],templates:['standard'],settings:{due_days:14,recent_count:5},active_company_id:1,status:'draft'};
+const defaultData = () => ({seller:{...emptyParty(),name:'Musterfirma'},buyer:emptyParty(),number:new Date().getFullYear()+'-0001',payment_reference_prefix:'',payment_reference:'',customer_id:0,date:new Date().toISOString().slice(0,10),service_date:'',subject:'',subject_prefix:appData?.settings?.subject_prefix??'Rechnung',account_holder:'',iban:'',bic:'',bank_name:'',payment_note:'Ich bedanke mich für die Zusammenarbeit.',items:[newItem()]});
+let appData = {companies:[],invoices:[],customers:[],templates:['example','standard'],settings:{due_days:14,recent_count:5},active_company_id:1,status:'draft'};
 let data = defaultData();
 let companyDraft = null;
 let dirty = false;
@@ -170,11 +170,36 @@ function renderCustomers() {
   document.getElementById('save-customer-button').textContent=match?'Als neuen Kunden speichern':'Kunden speichern';
   syncCustomerFields();
 }
+const templateLabel=name=>name==='standard'?'Artmessengers':name==='example'?'Example':name;
+let selectedTemplate=null;
+let templatePreviewSequence=0;
+function sizeTemplatePreview(){
+  const surface=document.getElementById('template-preview-surface'),frame=surface.querySelector('iframe');
+  if(!frame||!frame.contentDocument)return;
+  const height=Math.ceil(Math.max(1123,frame.contentDocument.body?.getBoundingClientRect().height||0));
+  const scale=surface.clientWidth/794;
+  frame.style.width='794px';frame.style.height=height+'px';frame.style.transform=`scale(${scale})`;
+  surface.style.height=Math.ceil(height*scale)+'px';
+}
+window.addEventListener('resize',sizeTemplatePreview);
+async function showTemplatePreview(){
+  const name=selectedTemplate,sequence=++templatePreviewSequence,surface=document.getElementById('template-preview-surface');
+  document.getElementById('template-preview-title').textContent=templateLabel(name);
+  surface.style.height='auto';surface.innerHTML='<p class="empty-state">Vorschau wird geladen …</p>';
+  try{
+    const html=invoke?await invoke('preview_template',{workspace:structuredClone(data),template:name}):null;
+    if(sequence!==templatePreviewSequence)return;
+    if(!html){surface.innerHTML='<p class="empty-state">Die Vorschau ist in der Desktop-App verfügbar.</p>';return;}
+    const frame=document.createElement('iframe');frame.title=`Vorschau ${templateLabel(name)}`;
+    frame.onload=()=>{const ready=()=>{if(sequence===templatePreviewSequence)sizeTemplatePreview();};frame.contentWindow.addEventListener('invoice-layout-ready',ready);frame.contentDocument.fonts.ready.then(ready);ready();};
+    frame.srcdoc=html;surface.replaceChildren(frame);
+  }catch(error){if(sequence===templatePreviewSequence)surface.innerHTML=`<p class="empty-state">${escapeHtml(String(error))}</p>`;}
+}
 function renderTemplates() {
   const firm=activeCompany();
-  document.getElementById('template-select').innerHTML=appData.templates.map(name=>`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-  document.getElementById('template-select').value=firm?.template||'standard';
-  document.getElementById('template-list').innerHTML=appData.templates.map(name=>`<div class="template-row"><span>▧</span><strong>${escapeHtml(name)}</strong>${name===firm?.template?'<em>Aktiv</em>':''}</div>`).join('');
+  if(!appData.templates.includes(selectedTemplate))selectedTemplate=firm?.template||appData.templates[0];
+  document.getElementById('template-list').innerHTML=appData.templates.map(name=>`<div class="template-row ${name===selectedTemplate?'selected':''}"><button type="button" class="template-choice" data-view-template="${escapeHtml(name)}"><span class="template-icon">▧</span><span><strong>${escapeHtml(templateLabel(name))}</strong><small>${name===firm?.template?'Aktuelle Vorlage':'HTML · CSS'}</small></span></button><button type="button" class="button ${name===firm?.template?'':'primary'}" data-activate-template="${escapeHtml(name)}" ${name===firm?.template?'disabled':''}>${name===firm?.template?'Aktiv':'Aktivieren'}</button></div>`).join('');
+  if(selectedTemplate)showTemplatePreview();
 }
 function splitCompanyCity(city){const match=String(city||'').trim().match(/^(\S+)\s+(.+)$/);return match?{postal_code:match[1],locality:match[2]}:{postal_code:'',locality:city||''};}
 function fillSettings() {
@@ -211,6 +236,7 @@ function showPage(next) {
   document.getElementById('create-company-button').classList.toggle('hidden',next!=='settings');
   if(next==='settings'){if(settingsRevision===settingsSavedRevision)fillSettings();updateReferenceExample();}
   for(const id of ['invoice','invoices','customers','templates','settings'])document.getElementById(id+'-page').classList.toggle('hidden',id!==next);
+  if(next==='templates')requestAnimationFrame(sizeTemplatePreview);
   const titles={invoice:['RECHNUNG','Rechnung','Deine Rechnungsdaten'],invoices:['ÜBERSICHT','Rechnungen','Rechnungen der aktuellen Firma'],search:['SUCHE','Suche','Rechnungen finden'],customers:['ADRESSBUCH','Kunden','Deine Kunden'],templates:['GESTALTUNG','Templates','Vorlagen der aktuellen Firma'],settings:['VOREINSTELLUNGEN','Einstellungen','Standardwerte für neue Rechnungen'],company:['FIRMA','Firmendaten','Angaben zur aktuellen Firma']};
   const [label,title,subtitle]=titles[next];
   document.getElementById('section-label').textContent=label;
@@ -248,6 +274,7 @@ async function switchCompany(id) {
   await flushSave();
   await invoke('select_company',{companyId:id});
   appData=await invoke('load_app');
+  selectedTemplate=null;
   companyDraft=structuredClone(activeCompany());
   const latest=activeInvoices()[0];
   if(latest){data=await invoke('open_invoice',{id:latest.id});appData=await invoke('load_app');dirty=false;syncUi();showPage('invoices');setStatus('Bereit');}
@@ -350,7 +377,18 @@ async function flushSettings(){
   }finally{settingsSaving=null;}
   if(settingsSavedRevision<settingsRevision)return flushSettings();
 }
-document.getElementById('save-template').addEventListener('click',async()=>{try{const company=structuredClone(activeCompany());company.template=document.getElementById('template-select').value;await invoke('save_company',{company});appData.companies=appData.companies.map(row=>row.id===company.id?company:row);renderTemplates();renderMenu();setStatus('Vorlage gespeichert');}catch(error){setStatus(String(error));}});
+document.getElementById('template-list').addEventListener('click',async event=>{
+  const choice=event.target.closest('[data-view-template]');
+  if(choice){selectedTemplate=choice.dataset.viewTemplate;renderTemplates();return;}
+  const button=event.target.closest('[data-activate-template]');
+  if(!button||button.disabled)return;
+  try{
+    const company=structuredClone(activeCompany());company.template=button.dataset.activateTemplate;
+    await invoke('save_company',{company});
+    appData.companies=appData.companies.map(row=>row.id===company.id?company:row);
+    selectedTemplate=company.template;renderTemplates();preview();setStatus('Vorlage aktiviert');
+  }catch(error){setStatus(String(error));}
+});
 document.getElementById('create-company-button').addEventListener('click',()=>{
   document.getElementById('create-company-error').textContent='';document.getElementById('new-company-name').value='';document.getElementById('create-company-dialog').showModal();document.getElementById('new-company-name').focus();
 });
@@ -375,7 +413,7 @@ document.getElementById('export-button').addEventListener('click',async()=>{
 (async()=>{
   try{
     if(invoke){appData=await invoke('load_app');data=appData.workspace;}
-    else{data=JSON.parse(localStorage.getItem('billflux-workspace'))||defaultData();data.company_id=1;appData.companies=[{id:1,party:data.seller,template:'standard'}];appData.active_company_id=1;}
+    else{data=JSON.parse(localStorage.getItem('billflux-workspace'))||defaultData();data.company_id=1;appData.companies=[{id:1,party:data.seller,template:'example'}];appData.active_company_id=1;}
     companyDraft=structuredClone(activeCompany());
     if(!data.date&&appData.status!=='issued')data.date=todayLocal();
     syncUi();showPage('invoice');setStatus('Bereit');

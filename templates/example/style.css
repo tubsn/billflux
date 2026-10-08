@@ -1,0 +1,31 @@
+@font-face{font-family:"Fira Sans";src:url("fonts/Fira_Sans/FiraSans-Regular.ttf") format("truetype");font-weight:400}
+@font-face{font-family:"Fira Sans";src:url("fonts/Fira_Sans/FiraSans-Bold.ttf") format("truetype");font-weight:700}
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+body{width:210mm;margin:0;padding:18mm 19mm 16mm;color:#1b2932;font:10pt/1.45 "Fira Sans",Arial,sans-serif}
+body.paginated{padding:0}
+.sheet{width:210mm;height:297mm;padding:18mm 19mm 16mm;display:flex;flex-direction:column;position:relative;break-after:page;background:#fff}
+.sheet:last-child{break-after:auto}.sheet>*{flex-shrink:0}
+.masthead{display:flex;justify-content:space-between;align-items:flex-start;min-height:39mm;border-top:2.5mm solid #263b45;padding-top:8mm}
+.wordmark{font-size:21pt;font-weight:700;letter-spacing:-.04em;max-width:90mm;overflow-wrap:anywhere;line-height:1.15}
+.wordmark small{display:block;margin-top:3mm;color:#4b858b;font-size:8pt;letter-spacing:.22em}
+.sender{text-align:right;color:#54656d;font-size:8.5pt;line-height:1.5}
+.address-area{display:flex;justify-content:space-between;gap:15mm;min-height:51mm;padding-top:10mm}
+.recipient{line-height:1.5}.recipient strong{display:block;margin:2mm 0 0;font-size:11pt}
+.recipient small,.invoice-id small,.payment small{display:block;color:#4b858b;font-size:7pt;font-weight:700;letter-spacing:.16em}
+.invoice-id{min-width:42mm}.invoice-id strong{display:block;margin:1mm 0 5mm;font-size:10pt}
+main{margin-top:3mm}.sheet:not(:first-child) main{margin-top:0}
+h1{margin:0 0 8mm;font-size:15pt;font-weight:700;letter-spacing:-.025em}
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt}
+thead{display:table-header-group;border-bottom:1px solid #96a9ad}
+th{text-align:left;color:#657880;font-size:7pt;letter-spacing:.09em;padding:0 2mm 3mm}
+th:nth-child(1){width:7%}th:nth-child(2){width:40%}th:nth-child(3){width:9%}th:nth-child(4){width:14%}th:nth-child(5){width:14%}th:nth-child(6){width:16%}
+th:nth-child(n+3),td.number{text-align:right}
+td{padding:4mm 2mm;vertical-align:top;border-bottom:1px solid #e3e8e8;overflow-wrap:anywhere}
+td.item{white-space:pre-wrap;line-height:1.45}td.item strong{font-weight:700}td.number{white-space:nowrap}
+.totals{width:54%;margin:7mm 0 0 auto}.totals div{display:flex;justify-content:space-between;gap:4mm;padding:1.4mm 2mm}
+.totals .grand{border-top:2px solid #263b45;margin-top:2mm;padding-top:3mm;font-size:11pt}
+.payment{margin-top:12mm;break-inside:avoid}.payment p{margin:3mm 0 4mm}.payment dl{display:grid;grid-template-columns:28mm 1fr;gap:1mm 0;margin:0 0 5mm}.payment dt{color:#657880}.payment dd{margin:0}
+footer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6mm;margin-top:auto;padding-top:5mm;border-top:1px solid #96a9ad;color:#657880;font-size:7pt;line-height:1.45;break-inside:avoid}
+footer div:last-child{text-align:right}footer strong{color:#263b45}
+@media screen{html{overflow:hidden;background:#e9eef1}.sheet+.sheet{margin-top:20px}}

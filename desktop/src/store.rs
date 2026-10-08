@@ -43,8 +43,9 @@ fn db() -> Result<Connection,String> {
     if count==0 {
         conn.execute_batch("BEGIN IMMEDIATE").map_err(|e|e.to_string())?;
         let old:Option<String>=conn.query_row("SELECT data FROM workspace WHERE id=1",[],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
-        let mut draft:Workspace=old.map(|s|serde_json::from_str(&s)).transpose().map_err(|e|e.to_string())?.unwrap_or_default();
-        conn.execute("INSERT INTO companies(data) VALUES(?1)",params![serde_json::to_string(&draft.seller).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
+        let mut draft:Workspace=old.as_ref().map(|s|serde_json::from_str(s)).transpose().map_err(|e|e.to_string())?.unwrap_or_default();
+        let template=if old.is_some(){"standard"}else{"example"};
+        conn.execute("INSERT INTO companies(data,template) VALUES(?1,?2)",params![serde_json::to_string(&draft.seller).map_err(|e|e.to_string())?,template]).map_err(|e|e.to_string())?;
         draft.company_id=conn.last_insert_rowid();
         let pdf=base()?.join("output").join(format!("{}.pdf",draft.number));
         let status=if pdf.is_file(){"issued"}else{"draft"};

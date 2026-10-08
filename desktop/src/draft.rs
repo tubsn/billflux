@@ -28,7 +28,7 @@ pub struct Workspace {
     pub items: Vec<Item>,
 }
 impl Default for Workspace {
-    fn default() -> Self { Self { invoice_id: 0, customer_id:0, payment_reference:String::new(), company_id: 0, seller: Party { name: "artMessengers.de".into(), ..Party::default() }, buyer: Party::default(), number: format!("{}-0001",chrono::Local::now().format("%Y")), date: String::new(), service_date: String::new(), due_date: String::new(), subject: String::new(), subject_prefix:"Rechnung".into(), payment_reference_prefix:String::new(), payment_note:"Ich bedanke mich für die Zusammenarbeit.".into(), account_holder: String::new(), iban: String::new(), bic: String::new(), bank_name: String::new(), items: vec![Item::default()] } }
+    fn default() -> Self { Self { invoice_id: 0, customer_id:0, payment_reference:String::new(), company_id: 0, seller: Party { name: "Musterfirma".into(), ..Party::default() }, buyer: Party::default(), number: format!("{}-0001",chrono::Local::now().format("%Y")), date: String::new(), service_date: String::new(), due_date: String::new(), subject: String::new(), subject_prefix:"Rechnung".into(), payment_reference_prefix:String::new(), payment_note:"Ich bedanke mich für die Zusammenarbeit.".into(), account_holder: String::new(), iban: String::new(), bic: String::new(), bank_name: String::new(), items: vec![Item::default()] } }
 }
 
 #[derive(Serialize)]

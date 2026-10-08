@@ -102,6 +102,7 @@ impl Invoice {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn sample() -> Invoice {
     Invoice {
         number: "BF-2026-0001".into(),

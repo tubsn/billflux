@@ -81,6 +81,7 @@ fn report_valid(report: &str) -> Result<bool, Box<dyn Error>> {
     Ok(pdf && xml && overall)
 }
 
+#[allow(dead_code)]
 pub fn create(
     base: &Path,
     preview: &Path,

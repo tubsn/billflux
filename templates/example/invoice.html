@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Rechnung {{number}}</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <header class="masthead">
+    <div class="wordmark">{{seller_name}}<small>RECHNUNG</small></div>
+    <div class="sender">{{sender_name}}<br>{{seller_street}}<br>{{seller_postal_city}}<br>{{seller_email}}</div>
+  </header>
+  <section class="address-area">
+    <div class="recipient"><small>RECHNUNG AN</small><strong>{{buyer_name}}</strong><br>{{buyer_street}}<br>{{buyer_city}}</div>
+    <div class="invoice-id"><small>RECHNUNGSNUMMER</small><strong>{{number}}</strong><small>DATUM</small><strong>{{date_german}}</strong></div>
+  </section>
+  <main>
+    <h1>{{invoice_heading}}</h1>
+    <table><thead><tr><th>POS.</th><th>LEISTUNG</th><th>UST.</th><th>PREIS</th><th>MENGE</th><th>BETRAG</th></tr></thead><tbody>{{rows}}</tbody></table>
+    <section class="totals"><div><span>Zwischensumme</span><span>{{net}} €</span></div>{{tax_rows}}<div class="grand"><strong>Gesamtbetrag</strong><strong>{{gross}} €</strong></div></section>
+    <section class="payment"><small>ZAHLUNG</small><p>{{service_line}}Bitte überweisen Sie den Betrag{{payment_due}} auf folgendes Konto.</p><dl><dt>Kontoinhaber</dt><dd>{{account_holder}}</dd><dt>Verwendung</dt><dd>{{payment_reference}}</dd><dt>IBAN</dt><dd>{{iban}}</dd></dl><p>{{payment_note}}</p></section>
+  </main>
+  <footer><div><strong>{{sender_name}}</strong><br>{{seller_street}}<br>{{seller_postal_city}}</div><div>{{seller_email}}<br>Steuernummer: {{seller_tax_number}}{{seller_registration_line}}</div><div>{{bank_name}}<br>IBAN: {{iban}}{{bic_line}}</div></footer>
+</body>
+</html>
