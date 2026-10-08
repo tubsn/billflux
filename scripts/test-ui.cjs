@@ -6,7 +6,7 @@ const path=require('node:path');
  const browser=await chromium.launch({channel:'chrome',headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
- await page.goto(pathToFileURL(path.resolve(__dirname,'../desktop/ui/index.html')).href);
+ await page.goto(pathToFileURL(path.resolve(__dirname,'../ui/index.html')).href);
  await page.waitForFunction(()=>document.getElementById('save-status').textContent==='Entwurf');
  await page.locator('[data-page=settings]').click();
  assert.equal(await page.locator('.manage-firms').count(),0);

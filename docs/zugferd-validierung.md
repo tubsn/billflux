@@ -1,4 +1,4 @@
-# ZUGFeRD-Validierung im Prototyp
+# ZUGFeRD-Validierung in Billflux
 
 Das Zielprofil ist **EN 16931**. FeRD führt seit September 2026 [ZUGFeRD 2.5.2 als aktuelles Infopaket](https://www.ferd-net.de/standards/zugferd). Mustang 2.26.0 nutzt für den Export die passenden ZUGFeRD-2.5-Regeln.
 
@@ -12,7 +12,7 @@ Beim Entwickeln liegen die Werkzeuge unter `.tools/` und sind nicht Teil des Que
 - Ghostscripts [PDF/A-Definitionsdatei](https://github.com/ArtifexSoftware/ghostpdl/blob/master/lib/PDFA_def.ps) als `.tools/PDFA_def.ps` und ein RGB-ICC-Profil als `.tools/srgb.icc`. Im lokalen Test wurde das Windows-sRGB-Profil verwendet.
 - Google Chrome unter `C:\Program Files\Google\Chrome\Application\chrome.exe` für HTML zu PDF.
 
-`cargo run --offline -- --zugferd` erstellt zuerst `preview/sample.pdf` und `preview/sample.xml`, wandelt die PDF mit Ghostscript in PDF/A-3 um, bettet die XML mit Mustang ein und validiert die fertige Datei. Nur wenn die drei Berichtswerte für PDF, XML und Gesamtergebnis jeweils `valid` sind, kopiert der Prototyp PDF und Bericht nach `output/`.
+Der Export in der Desktop-App erstellt zunächst PDF und XML unter `dist/Billflux/preview/`, wandelt die PDF mit Ghostscript in PDF/A-3 um, bettet die XML mit Mustang ein und validiert die fertige Datei. Nur wenn die drei Berichtswerte für PDF, XML und Gesamtergebnis jeweils `valid` sind, übernimmt Billflux PDF und Bericht nach `dist/Billflux/output/`.
 
 ## Ergebnis des Beispieltests
 
@@ -35,9 +35,9 @@ Die Beispielrechnung nutzt Platzhalter. Der Validierungserfolg bezieht sich gena
 
 Nach der XML-Einbettung normalisiert `src/java/BillfluxPdfMetadata.java` die Softwareangaben mit dem in Mustang enthaltenen PDFBox: Die freiwilligen Angaben PDF-Producer, PDF-Creator, PDF-Author, XMP-Producer, XMP-CreatorTool und XMP-dc:creator werden entfernt. Es wird kein Herstellername eingetragen. Rechnungs-XML, PDF/A-/ZUGFeRD-Deklarationen, Titel und Zeitstempel bleiben erhalten. Erst diese finale Datei wird validiert und zur Ausgabe freigegeben.
 
-Die Java-11-kompatible Klasse liegt mit ihrem Quellcode unter `src/java/` und wird über `include_bytes!` in beide Rust-Anwendungen eingebettet. Zur Laufzeit sind keine weiteren Werkzeuge nötig. Nach Änderungen am Java-Quellcode muss `scripts/build-pdf-metadata.ps1` mit einem JDK (javac, Java 11 oder neuer) ausgeführt werden, anschließend der Rust-Build. Die bestehende Mustang-JAR bleibt unverändert.
+Die Java-11-kompatible Klasse liegt mit ihrem Quellcode unter `src/java/` und wird über `include_bytes!` in Billflux eingebettet. Zur Laufzeit sind keine weiteren Werkzeuge nötig. Nach Änderungen am Java-Quellcode muss `scripts/build-pdf-metadata.ps1` mit einem JDK (javac, Java 11 oder neuer) ausgeführt werden, anschließend der Rust-Build. Die bestehende Mustang-JAR bleibt unverändert.
 
-Regression: `python scripts/test-pdf-metadata.py output/PROTOTYP-BF-2026-0001.pdf preview/sample.xml` prüft die Softwareangaben, fehlende Autorenangaben, Formatdeklarationen und genau einen byteidentischen XML-Anhang. Der vollständige Export mit Mustang 2.26.0 wurde am 08.10.2026 erneut als PDF/A-3u und EN-16931-XML validiert; die gerenderte Seite ist pixelidentisch mit der PDF/A-Datei vor der Einbettung. Bereits ausgestellte Rechnungen werden nicht nachträglich verändert.
+Der Regressionstest `scripts/test-pdf-metadata.py` prüft Softwareangaben, fehlende Autorenangaben, Formatdeklarationen und genau einen byteidentischen XML-Anhang. Der vollständige Export mit Mustang 2.26.0 wurde am 08.10.2026 erneut als PDF/A-3u und EN-16931-XML validiert; die gerenderte Seite ist pixelidentisch mit der PDF/A-Datei vor der Einbettung. Bereits ausgestellte Rechnungen werden nicht nachträglich verändert.
 
 
 ## Prüfung mit Rechnung 2026-42062 am 08.10.2026

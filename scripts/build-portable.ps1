@@ -1,5 +1,6 @@
 param(
-    [string]$ChromeSource = 'C:\Program Files\Google\Chrome\Application'
+    [string]$ChromeSource = 'C:\Program Files\Google\Chrome\Application',
+    [switch]$KeepBuildCache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,9 +21,7 @@ foreach ($path in @(
 Push-Location $project
 try {
     cargo build --release --offline
-    if ($LASTEXITCODE -ne 0) { throw 'Cargo-Build fehlgeschlagen' }
-    cargo build --release --offline --manifest-path desktop/Cargo.toml
-    if ($LASTEXITCODE -ne 0) { throw 'Desktop-Build fehlgeschlagen' }
+    if ($LASTEXITCODE -ne 0) { throw 'Billflux-Build fehlgeschlagen' }
 } finally {
     Pop-Location
 }
@@ -40,22 +39,37 @@ foreach ($directory in @(
     (Join-Path $bundle 'output')
 )) { New-Item -ItemType Directory -Force -Path $directory | Out-Null }
 
-Copy-Item -LiteralPath (Join-Path $project 'desktop\target\release\billflux-desktop.exe') -Destination (Join-Path $bundle 'Billflux.exe') -Force
-Copy-Item -LiteralPath (Join-Path $project 'target\release\billflux-prototype.exe') -Destination (Join-Path $bundle 'Billflux-CLI.exe') -Force
-Copy-Item -LiteralPath (Join-Path $project 'templates\standard\invoice.html') -Destination (Join-Path $bundle 'templates\standard\invoice.html') -Force
-Copy-Item -LiteralPath (Join-Path $project 'templates\standard\style.css') -Destination (Join-Path $bundle 'templates\standard\style.css') -Force
-Copy-Item -LiteralPath (Join-Path $project 'templates\example\invoice.html') -Destination (Join-Path $bundle 'templates\example\invoice.html') -Force
-Copy-Item -LiteralPath (Join-Path $project 'templates\example\style.css') -Destination (Join-Path $bundle 'templates\example\style.css') -Force
+Copy-Item -LiteralPath (Join-Path $project 'target\release\billflux.exe') -Destination (Join-Path $bundle 'Billflux.exe') -Force
+$oldCli = Join-Path $bundle 'Billflux-CLI.exe'
+if (Test-Path -LiteralPath $oldCli) { Remove-Item -LiteralPath $oldCli -Force }
 
 foreach ($template in @('standard', 'example')) {
-foreach ($family in @('Fira_Sans', 'Fira_Sans_Condensed')) {
-    $source = Join-Path $project "fonts\$family"
-    $destination = Join-Path $bundle "templates\$template\fonts\$family"
-    Copy-Item -LiteralPath (Join-Path $source 'OFL.txt') -Destination $destination -Force
-    Get-ChildItem -LiteralPath $source -File | Where-Object { $_.Name -match '(-Regular|-Bold)\.ttf$' } | ForEach-Object {
-        Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+    foreach ($file in @('invoice.html', 'style.css')) {
+        $source = Join-Path $project "templates\$template\$file"
+        $destination = Join-Path $bundle "templates\$template\$file"
+        if (-not (Test-Path -LiteralPath $destination)) {
+            Copy-Item -LiteralPath $source -Destination $destination
+        }
     }
 }
+
+foreach ($template in @('standard', 'example')) {
+    foreach ($family in @('Fira_Sans', 'Fira_Sans_Condensed')) {
+        $source = Join-Path $project "fonts\$family"
+        $destination = Join-Path $bundle "templates\$template\fonts\$family"
+        foreach ($file in @('OFL.txt')) {
+            $target = Join-Path $destination $file
+            if (-not (Test-Path -LiteralPath $target)) {
+                Copy-Item -LiteralPath (Join-Path $source $file) -Destination $target
+            }
+        }
+        Get-ChildItem -LiteralPath $source -File | Where-Object { $_.Name -match '(-Regular|-Bold)\.ttf$' } | ForEach-Object {
+            $target = Join-Path $destination $_.Name
+            if (-not (Test-Path -LiteralPath $target)) {
+                Copy-Item -LiteralPath $_.FullName -Destination $target
+            }
+        }
+    }
 }
 
 Copy-Item -LiteralPath (Join-Path $tools 'Mustang-CLI-2.26.0.jar') -Destination (Join-Path $bundle 'vendor') -Force
@@ -66,5 +80,13 @@ Get-ChildItem -LiteralPath (Join-Path $tools 'jre11') -Directory | ForEach-Objec
     Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'vendor\jre11') -Recurse -Force
 }
 Copy-Item -Path (Join-Path $ChromeSource '*') -Destination (Join-Path $bundle 'vendor\chrome') -Recurse -Force
+
+if (-not $KeepBuildCache) {
+    Push-Location $project
+    try { cargo clean } finally { Pop-Location }
+    if ($LASTEXITCODE -ne 0) { throw 'Distribution wurde gebaut, aber der Build-Cache konnte nicht entfernt werden' }
+    $generated = Join-Path $project 'gen'
+    if (Test-Path -LiteralPath $generated) { Remove-Item -LiteralPath $generated -Recurse -Force }
+}
 
 Write-Host "Portabler Ordner: $bundle"

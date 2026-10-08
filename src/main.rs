@@ -1,106 +1,71 @@
-mod export;
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod draft;
 mod model;
 mod view;
 mod xml;
+mod export;
+mod production;
+mod renderer;
+mod store;
 
-use std::{env, fs, path::PathBuf, process::Command};
+#[tauri::command]
+fn load_workspace() -> Result<draft::Workspace, String> { store::load() }
+#[tauri::command]
+fn load_app() -> Result<store::AppData,String> { store::load_app() }
+#[tauri::command]
+fn select_company(company_id:i64) -> Result<(),String> { store::select_company(company_id) }
+#[tauri::command]
+fn save_settings(company_id:i64,settings:store::Settings) -> Result<(),String> { store::save_settings(company_id,settings) }
+#[tauri::command]
+fn save_company_settings(company_id:i64,party:draft::Party,settings:store::Settings) -> Result<store::Company,String> { store::save_company_settings(company_id,party,settings) }
+#[tauri::command]
+fn save_customer(company_id:i64,party:draft::Party) -> Result<store::Customer,String> { store::save_customer(company_id,party) }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let executable_dir = env::current_exe()?
-        .parent()
-        .ok_or("EXE-Verzeichnis nicht gefunden")?
-        .to_path_buf();
-    let base = if executable_dir
-        .join("templates/standard/invoice.html")
-        .is_file()
-    {
-        executable_dir
-    } else {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    };
-    let preview = base.join("preview");
-    fs::create_dir_all(&preview)?;
-    fs::create_dir_all(base.join("database"))?;
-    fs::create_dir_all(base.join("output"))?;
-    let invoice = model::sample();
-    let final_invoice = invoice.finalize()?;
-    let template = fs::read_to_string(base.join("templates/standard/invoice.html"))?;
-    let html = view::html(&final_invoice, &template);
-    let html_path = preview.join("sample.html");
-    let xml_path = preview.join("sample.xml");
-    fs::write(&html_path, html)?;
-    fs::copy(
-        base.join("templates/standard/style.css"),
-        preview.join("style.css"),
-    )?;
-    for (family, names) in [
-        ("Fira_Sans", ["FiraSans-Regular.ttf", "FiraSans-Bold.ttf"]),
-        (
-            "Fira_Sans_Condensed",
-            [
-                "FiraSansCondensed-Regular.ttf",
-                "FiraSansCondensed-Bold.ttf",
-            ],
-        ),
-    ] {
-        let destination = preview.join("fonts").join(family);
-        fs::create_dir_all(&destination)?;
-        for name in names {
-            let template_font = base
-                .join("templates/standard/fonts")
-                .join(family)
-                .join(name);
-            let source = if template_font.is_file() {
-                template_font
-            } else {
-                base.join("fonts").join(family).join(name)
-            };
-            fs::copy(source, destination.join(name))?;
-        }
-    }
-    fs::write(&xml_path, xml::render(&final_invoice))?;
-    println!("Vorschau: {}", html_path.display());
-    println!("XML-Entwurf: {}", xml_path.display());
-    println!("Gesamt: {} EUR", model::money(final_invoice.gross_cents));
-    let args: Vec<String> = env::args().collect();
-    if args.iter().any(|arg| arg == "--pdf" || arg == "--zugferd") {
-        let bundled_chrome = base.join("vendor/chrome/chrome.exe");
-        let chrome = if bundled_chrome.is_file() {
-            bundled_chrome
-        } else {
-            PathBuf::from(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
-        };
-        let pdf_path = preview.join("sample.pdf");
-        let html_url = format!(
-            "file:///{}",
-            html_path
-                .to_string_lossy()
-                .replace('\\', "/")
-                .replace(' ', "%20")
-        );
-        let status = Command::new(chrome)
-            .arg("--headless")
-            .arg("--disable-gpu")
-            .arg("--no-sandbox")
-            .arg("--no-pdf-header-footer")
-            .arg(format!("--print-to-pdf={}", pdf_path.display()))
-            .arg(html_url)
-            .status()?;
-        if !status.success() || !pdf_path.exists() {
-            return Err("Chrome konnte keine PDF erzeugen".into());
-        }
-        println!("PDF-Vorschau: {}", pdf_path.display());
-        if args.iter().any(|arg| arg == "--zugferd") {
-            let validated = export::create(&base, &preview, &pdf_path, &xml_path, &format!("PROTOTYP-{}", invoice.number))?;
-            println!("Validierter Prototyp: {}", validated.display());
-        }
-    }
-    Ok(())
+#[tauri::command]
+fn update_customer(id:i64,party:draft::Party) -> Result<store::Customer,String> { store::update_customer(id,party) }
+#[tauri::command]
+fn duplicate_invoice(id:i64,date:String) -> Result<draft::Workspace,String> { store::duplicate_invoice(id,&date) }
+#[tauri::command]
+fn delete_invoice(id:i64) -> Result<(),String> { store::delete_invoice(id) }
+#[tauri::command]
+fn save_workspace(workspace: draft::Workspace) -> Result<draft::Workspace, String> { store::save(&workspace) }
+#[tauri::command]
+fn create_company(name:String) -> Result<store::Company,String> { store::create_company(name) }
+#[tauri::command]
+fn save_company(company:store::Company) -> Result<store::Company,String> { store::save_company(company) }
+#[tauri::command]
+fn new_invoice(company_id:i64,date:String) -> Result<draft::Workspace,String> { store::new_invoice(company_id,&date) }
+#[tauri::command]
+fn open_invoice(id:i64) -> Result<draft::Workspace,String> { store::open_invoice(id) }
+
+#[tauri::command]
+fn preview_invoice(workspace:draft::Workspace) -> Result<String,String> { production::preview_document(workspace) }
+#[tauri::command]
+fn preview_template(workspace:draft::Workspace,template:String) -> Result<String,String> { production::preview_template(workspace,template) }
+#[tauri::command]
+fn calculate(workspace: draft::Workspace) -> Result<draft::Totals, String> {
+    draft::calculate(&workspace)
+}
+
+#[tauri::command]
+async fn export_invoice(window: tauri::Window, workspace: draft::Workspace) -> Result<Option<production::ExportResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        production::validate_export(&workspace)?;
+        let saved=store::save(&workspace)?;
+        let destination=rfd::FileDialog::new().set_parent(&window).set_title("PDF Exportieren")
+            .add_filter("PDF", &["pdf"]).set_file_name(format!("{}.pdf",workspace.number)).save_file();
+        let Some(destination)=destination else{return Ok(None);};
+        let result=production::create_to(saved.clone(),Some(destination))?;
+        store::mark_issued(saved.invoice_id,&result.pdf_path,&result.report_path)?;
+        Ok(Some(result))
+    })
+        .await.map_err(|e| e.to_string())?
 }
 
 fn main() {
-    if let Err(error) = run() {
-        eprintln!("Fehler: {error}");
-        std::process::exit(1);
-    }
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![load_workspace, load_app, select_company, save_settings, save_company_settings, save_customer, update_customer, duplicate_invoice, delete_invoice, save_workspace, create_company, save_company, new_invoice, open_invoice, preview_invoice, preview_template, calculate, export_invoice])
+        .run(tauri::generate_context!())
+        .expect("Billflux konnte nicht gestartet werden");
 }

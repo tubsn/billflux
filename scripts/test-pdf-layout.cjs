@@ -50,7 +50,7 @@ function run(args){const result=spawnSync(chrome,args,{windowsHide:true,encoding
      throw Error(command);
    }}};
  },{html});
- await ui.goto(pathToFileURL(path.join(root,'desktop/ui/index.html')).href);
+ await ui.goto(pathToFileURL(path.join(root,'ui/index.html')).href);
  await ui.waitForFunction(()=>document.querySelector('#preview iframe[data-current]')?.contentDocument?.documentElement.dataset.pagination==='ready');
  await ui.evaluate(()=>{window.originalPreview=document.querySelector('#preview iframe[data-current]');window.previewGaps=0;new MutationObserver(()=>{if(!document.querySelector('#preview iframe[data-current]'))window.previewGaps++;}).observe(document.getElementById('preview'),{childList:true});});
  const beforeCalls=await ui.evaluate(()=>window.previewCalls);

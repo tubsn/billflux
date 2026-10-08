@@ -1,7 +1,6 @@
 # Rust und Tauri: Build-Ausgaben und erzeugte Schemas
 /target/
-/desktop/target/
-/desktop/gen/
+/gen/
 
 # Lokal installierte Werkzeuge und Abhaengigkeiten
 /.tools/

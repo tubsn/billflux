@@ -7,7 +7,7 @@ const {pathToFileURL}=require('node:url');
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}});
-  await page.goto(pathToFileURL(path.resolve('desktop/ui/index.html')).href);
+  await page.goto(pathToFileURL(path.resolve('ui/index.html')).href);
   await page.waitForFunction(()=>document.getElementById('save-status').textContent==='Entwurf');
   await page.evaluate(()=>showPage('invoice'));
   const field=page.locator('textarea[data-key=detail]').first();

@@ -17,7 +17,7 @@ fn base_dir() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let folder = exe.parent().ok_or("Programmverzeichnis fehlt")?;
     if folder.join("templates/standard/invoice.html").is_file() { Ok(folder.to_path_buf()) }
-    else { Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().ok_or("Projektverzeichnis fehlt")?.to_path_buf()) }
+    else { Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))) }
 }
 
 fn party(value: draft::Party) -> model::Party {

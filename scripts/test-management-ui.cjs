@@ -26,7 +26,7 @@ const path=require('node:path');
    throw Error('Unexpected command '+command);
   }}};
  });
- await page.goto(pathToFileURL(path.resolve(__dirname,'../desktop/ui/index.html')).href);
+ await page.goto(pathToFileURL(path.resolve(__dirname,'../ui/index.html')).href);
  await page.waitForFunction(()=>document.getElementById('save-status').textContent==='Entwurf');
  assert((await page.locator('#recent-invoices [data-open="10"] small').innerText()).includes('Original'));
  assert.equal(await page.locator('#recent-invoices small').first().evaluate(el=>getComputedStyle(el).textOverflow),'ellipsis');

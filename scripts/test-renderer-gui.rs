@@ -1,5 +1,5 @@
 #![windows_subsystem = "windows"]
-#[path = "../desktop/src/renderer.rs"] mod renderer;
+#[path = "../src/renderer.rs"] mod renderer;
 use std::{fs,path::PathBuf,process::{Command,Stdio},os::windows::process::CommandExt,time::{Duration,SystemTime,UNIX_EPOCH}};
 fn check()->Result<String,String>{
     let root=std::env::current_dir().map_err(|e|e.to_string())?;

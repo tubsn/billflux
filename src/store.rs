@@ -21,7 +21,7 @@ fn base() -> Result<PathBuf,String> {
     if let Ok(path)=std::env::var("BILLFLUX_TEST_BASE") { return Ok(PathBuf::from(path)); }
     let exe=std::env::current_exe().map_err(|e|e.to_string())?;
     let dir=exe.parent().ok_or("Programmverzeichnis fehlt")?;
-    if dir.join("templates").is_dir(){Ok(dir.to_path_buf())} else {Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().ok_or("Projektverzeichnis fehlt")?.to_path_buf())}
+    if dir.join("templates").is_dir(){Ok(dir.to_path_buf())} else {Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")))}
 }
 fn db() -> Result<Connection,String> {
     let dir=base()?.join("database");std::fs::create_dir_all(&dir).map_err(|e|e.to_string())?;
