@@ -1,5 +1,4 @@
 param(
-    [string]$ChromeSource = 'C:\Program Files\Google\Chrome\Application',
     [switch]$KeepBuildCache
 )
 
@@ -7,13 +6,15 @@ $ErrorActionPreference = 'Stop'
 $project = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $bundle = Join-Path $project 'dist\Billflux'
 $tools = Join-Path $project '.tools'
+& (Join-Path $PSScriptRoot 'install-renderer.ps1') -ToolsDirectory $tools
+$renderer = Join-Path $tools 'chrome-headless-shell\chrome-headless-shell-win64'
 
 foreach ($path in @(
     (Join-Path $tools 'Mustang-CLI-2.26.0.jar'),
     (Join-Path $tools 'PDFA_def.ps'),
     (Join-Path $tools 'srgb.icc'),
     (Join-Path $tools 'gs\Library\bin\gswin64c.exe'),
-    (Join-Path $ChromeSource 'chrome.exe')
+    (Join-Path $renderer 'chrome-headless-shell.exe')
 )) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Datei fehlt: $path" }
 }
@@ -34,7 +35,7 @@ foreach ($directory in @(
     (Join-Path $bundle 'templates\example\fonts\Fira_Sans_Condensed'),
     (Join-Path $bundle 'vendor\gs'),
     (Join-Path $bundle 'vendor\jre11'),
-    (Join-Path $bundle 'vendor\chrome'),
+    (Join-Path $bundle 'vendor\chrome-headless-shell'),
     (Join-Path $bundle 'database'),
     (Join-Path $bundle 'output')
 )) { New-Item -ItemType Directory -Force -Path $directory | Out-Null }
@@ -79,13 +80,25 @@ Copy-Item -LiteralPath (Join-Path $tools 'gs\Library') -Destination (Join-Path $
 Get-ChildItem -LiteralPath (Join-Path $tools 'jre11') -Directory | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $bundle 'vendor\jre11') -Recurse -Force
 }
-Copy-Item -Path (Join-Path $ChromeSource '*') -Destination (Join-Path $bundle 'vendor\chrome') -Recurse -Force
+$rendererDestination = Join-Path $bundle 'vendor\chrome-headless-shell'
+Get-ChildItem -LiteralPath $renderer -Force | Copy-Item -Destination $rendererDestination -Recurse -Force
+if (-not (Test-Path -LiteralPath (Join-Path $rendererDestination 'chrome-headless-shell.exe') -PathType Leaf)) {
+    throw 'Chrome Headless Shell fehlt in der Distribution'
+}
+$oldChrome = Join-Path $bundle 'vendor\chrome'
+if (-not ([IO.Path]::GetFullPath($oldChrome)).StartsWith(([IO.Path]::GetFullPath($bundle)).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Ungültiger Chrome-Zielpfad'
+}
+if (Test-Path -LiteralPath $oldChrome) { Remove-Item -LiteralPath $oldChrome -Recurse -Force }
 
 if (-not $KeepBuildCache) {
     Push-Location $project
     try { cargo clean } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { throw 'Distribution wurde gebaut, aber der Build-Cache konnte nicht entfernt werden' }
     $generated = Join-Path $project 'gen'
+    if (-not ([IO.Path]::GetFullPath($generated)).StartsWith(([IO.Path]::GetFullPath($project)).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Ungültiger Schema-Zielpfad'
+    }
     if (Test-Path -LiteralPath $generated) { Remove-Item -LiteralPath $generated -Recurse -Force }
 }
 

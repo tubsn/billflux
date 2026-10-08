@@ -10,7 +10,7 @@ Aus PowerShell im Projektverzeichnis:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-portable.ps1
 ```
 
-Das Skript baut nur `Billflux.exe`, kopiert die benötigten Laufzeitwerkzeuge nach `dist/Billflux/vendor/` und entfernt anschließend den Cargo-Build-Cache. Für schnellere Folgebuilds lässt sich der Cache mit `-KeepBuildCache` behalten. Der Build-Rechner benötigt die in `.tools/` vorbereiteten Werkzeuge und eine lokale Chrome-Installation. Die Einrichtung steht in [docs/zugferd-validierung.md](docs/zugferd-validierung.md).
+Das Skript baut nur `Billflux.exe`, kopiert die benötigten Laufzeitwerkzeuge nach `dist/Billflux/vendor/` und entfernt anschließend den Cargo-Build-Cache. Für schnellere Folgebuilds lässt sich der Cache mit `-KeepBuildCache` behalten. Der Build-Rechner benötigt die in `.tools/` vorbereiteten ZUGFeRD-Werkzeuge. Die feste Version von Chrome Headless Shell wird beim ersten Build über `scripts/install-renderer.ps1` heruntergeladen und per SHA-256 geprüft; eine lokale Chrome-Installation ist nicht nötig. Die Einrichtung steht in [docs/zugferd-validierung.md](docs/zugferd-validierung.md).
 
 `dist/Billflux/database/`, `dist/Billflux/output/` und bereits vorhandene Vorlagen werden bei einem erneuten Build nicht überschrieben oder geleert. Die Datenbank in `dist/Billflux/database/billflux.sqlite` enthält die live genutzten Rechnungsdaten und sollte regelmäßig gesichert werden. Zum Weitergeben an andere Personen einen frischen portablen Ordner ohne eigene Datenbank und Exporte erstellen.
 

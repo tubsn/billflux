@@ -124,9 +124,10 @@ pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Res
     fs::write(&html_path,view::html(&finalized,&template)).map_err(|e| e.to_string())?;
     fs::write(&xml_path,xml::render(&finalized)).map_err(|e| e.to_string())?;
     copy_assets(&base,&template_dir,&preview)?;
-    let bundled=base.join("vendor/chrome/chrome.exe");
-    let chrome=if bundled.is_file(){bundled}else{PathBuf::from(r"C:\Program Files\Google\Chrome\Application\chrome.exe")};
-    if !chrome.is_file() { return Err("Chrome für die PDF-Erstellung fehlt".into()); }
+    let bundled=base.join("vendor/chrome-headless-shell/chrome-headless-shell.exe");
+    let local=base.join(".tools/chrome-headless-shell/chrome-headless-shell-win64/chrome-headless-shell.exe");
+    let chrome=if bundled.is_file(){bundled}else{local};
+    if !chrome.is_file() { return Err("Chrome Headless Shell für die PDF-Erstellung fehlt".into()); }
     if pdf_path.exists(){fs::remove_file(&pdf_path).map_err(|e| e.to_string())?;}
     let url=format!("file:///{}",html_path.to_string_lossy().replace('\\',"/").replace(' ',"%20"));
     let run_id=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
