@@ -37,7 +37,7 @@ Nach der XML-Einbettung normalisiert `src/java/BillfluxPdfMetadata.java` die Sof
 
 Die Java-11-kompatible Klasse liegt mit ihrem Quellcode unter `src/java/` und wird über `include_bytes!` in Billflux eingebettet. Zur Laufzeit sind keine weiteren Werkzeuge nötig. Nach Änderungen am Java-Quellcode muss `scripts/build-pdf-metadata.ps1` mit einem JDK (javac, Java 11 oder neuer) ausgeführt werden, anschließend der Rust-Build. Die bestehende Mustang-JAR bleibt unverändert.
 
-Der Regressionstest `scripts/test-pdf-metadata.py` prüft Softwareangaben, fehlende Autorenangaben, Formatdeklarationen und genau einen byteidentischen XML-Anhang. Der vollständige Export mit Mustang 2.26.0 wurde am 08.10.2026 erneut als PDF/A-3u und EN-16931-XML validiert; die gerenderte Seite ist pixelidentisch mit der PDF/A-Datei vor der Einbettung. Bereits ausgestellte Rechnungen werden nicht nachträglich verändert.
+Der Regressionstest `tests/manual/test-pdf-metadata.py` prüft Softwareangaben, fehlende Autorenangaben, Formatdeklarationen und genau einen byteidentischen XML-Anhang. Der vollständige Export mit Mustang 2.26.0 wurde am 08.10.2026 erneut als PDF/A-3u und EN-16931-XML validiert; die gerenderte Seite ist pixelidentisch mit der PDF/A-Datei vor der Einbettung. Bereits ausgestellte Rechnungen werden nicht nachträglich verändert.
 
 
 ## Prüfung mit Rechnung 2026-42062 am 08.10.2026

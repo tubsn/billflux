@@ -23,12 +23,12 @@ impl Default for Item {
 pub struct Workspace {
     pub invoice_id: i64, pub customer_id:i64, pub payment_reference:String, pub company_id: i64,
     pub seller: Party, pub buyer: Party, pub number: String, pub date: String,
-    pub service_date: String, pub due_date: String, pub subject: String, #[serde(default="String::new")] pub subject_prefix: String,
+    pub service_date: String, pub service_month: bool, pub due_date: String, pub subject: String, #[serde(default="String::new")] pub subject_prefix: String,
     pub payment_reference_prefix:String, pub payment_note:String, pub account_holder: String, pub iban: String, pub bic: String, pub bank_name: String,
     pub items: Vec<Item>,
 }
 impl Default for Workspace {
-    fn default() -> Self { Self { invoice_id: 0, customer_id:0, payment_reference:String::new(), company_id: 0, seller: Party { name: "Musterfirma".into(), ..Party::default() }, buyer: Party::default(), number: format!("{}-0001",chrono::Local::now().format("%Y")), date: String::new(), service_date: String::new(), due_date: String::new(), subject: String::new(), subject_prefix:"Rechnung".into(), payment_reference_prefix:String::new(), payment_note:"Ich bedanke mich für die Zusammenarbeit.".into(), account_holder: String::new(), iban: String::new(), bic: String::new(), bank_name: String::new(), items: vec![Item::default()] } }
+    fn default() -> Self { Self { invoice_id: 0, customer_id:0, payment_reference:String::new(), company_id: 0, seller: Party { name: "Musterfirma".into(), ..Party::default() }, buyer: Party::default(), number: format!("{}-0001",chrono::Local::now().format("%Y")), date: String::new(), service_date: String::new(), service_month:false, due_date: String::new(), subject: String::new(), subject_prefix:"Rechnung".into(), payment_reference_prefix:String::new(), payment_note:"Ich bedanke mich für die Zusammenarbeit.".into(), account_holder: String::new(), iban: String::new(), bic: String::new(), bank_name: String::new(), items: vec![Item::default()] } }
 }
 
 #[derive(Serialize)]

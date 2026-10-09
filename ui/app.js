@@ -3,7 +3,7 @@ const euro = cents => new Intl.NumberFormat('de-DE', {style:'currency',currency:
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const emptyParty = () => ({name:'',alternative_name:'',contact:'',street:'',city:'',country:'DE',email:'',phone:'',website:'',tax_number:'',vat_id:'',economic_id:''});
 const newItem = () => ({description:'',detail:'',quantity:1,unit:'Stunden',unit_price_cents:appData.settings?.hourly_rate_cents||0,vat_percent:19});
-const defaultData = () => ({seller:{...emptyParty(),name:'Musterfirma'},buyer:emptyParty(),number:new Date().getFullYear()+'-0001',payment_reference_prefix:'',payment_reference:'',customer_id:0,date:new Date().toISOString().slice(0,10),service_date:'',subject:'',subject_prefix:appData?.settings?.subject_prefix??'Rechnung',account_holder:'',iban:'',bic:'',bank_name:'',payment_note:'Ich bedanke mich für die Zusammenarbeit.',items:[newItem()]});
+const defaultData = () => ({seller:{...emptyParty(),name:'Musterfirma'},buyer:emptyParty(),number:new Date().getFullYear()+'-0001',payment_reference_prefix:'',payment_reference:'',customer_id:0,date:new Date().toISOString().slice(0,10),service_date:'',service_month:false,due_date:'',subject:'',subject_prefix:appData?.settings?.subject_prefix??'Rechnung',account_holder:'',iban:'',bic:'',bank_name:'',payment_note:'Ich bedanke mich für die Zusammenarbeit.',items:[newItem()]});
 let appData = {companies:[],invoices:[],customers:[],templates:['example','standard'],settings:{due_days:14,recent_count:5},active_company_id:1,status:'draft'};
 let data = defaultData();
 let companyDraft = null;
@@ -14,7 +14,7 @@ let calculationSequence = 0;
 function getPath(path) { return path.split('.').reduce((object, key) => object?.[key], data); }
 function setPath(path, value) { const keys=path.split('.'); const final=keys.pop(); const object=keys.reduce((current,key)=>current[key],data); object[final]=value; }
 function setStatus(message) { const text=message==='Bereit'?(page==='invoice'?(appData.status==='issued'?'Ausgestellt':'Entwurf'):''):message;const status=document.getElementById('save-status');status.textContent=text;status.classList.toggle('hidden',!text); }
-function fillFields() { document.querySelectorAll('[data-path]').forEach(input => {const path=input.dataset.path;input.value=path.startsWith('seller.')?(companyDraft?.party?.[path.slice(7)]??''):(getPath(path)??'');}); }
+function fillFields() { document.querySelectorAll('[data-path]').forEach(input => {const path=input.dataset.path,value=path.startsWith('seller.')?(companyDraft?.party?.[path.slice(7)]??''):(path==='due_date'?effectiveDue():getPath(path)??'');if(input.type==='checkbox')input.checked=Boolean(value);else input.value=value;});const city=splitCompanyCity(data.buyer.city);document.querySelectorAll('[data-buyer-address]').forEach(input=>input.value=city[input.dataset.buyerAddress]); }
 function centsFromInput(value) { const normalized=String(value).trim().replace(',', '.'); return Math.round((Number(normalized)||0)*100); }
 const unitLabel = (unit, quantity) => ['Stunden','Stunde','h'].includes(unit)?'h':['Tage','Tag'].includes(unit)?(quantity===1?'Tag':'Tage'):unit;
 function itemMarkup(item,index) { return `<div class="item-card" data-index="${index}"><div class="item-top"><button type="button" class="drag-handle" data-drag="${index}" aria-label="Position ${index+1} verschieben" title="Ziehen oder mit Pfeiltasten verschieben">⠿</button><strong>Position ${index+1}</strong><button type="button" class="remove-item ${data.items.length>1?'':'hidden'}" data-remove="${index}" aria-label="Position ${index+1} entfernen">Entfernen ×</button></div><div class="item-fields"><label class="description">Beschreibung<input data-item="${index}" data-key="description" value="${escapeHtml(item.description)}" placeholder="Leistung oder Produkt"></label><label class="detail">Details<textarea rows="2" data-item="${index}" data-key="detail" placeholder="Weitere Angaben">${escapeHtml(item.detail)}</textarea></label><label>Menge<input type="text" inputmode="decimal" data-item="${index}" data-key="quantity" value="${String(item.quantity).replace('.',',')}" ${item.unit==='Pauschal'?'disabled':''}></label><label>Einheit<select data-item="${index}" data-key="unit">${['Stück','Stunden','Tage','Pauschal'].map(unit=>`<option value="${unit}" ${item.unit===unit?'selected':''}>${unitLabel(unit,item.quantity)}</option>`).join('')}</select></label><label>Einzelpreis €<input type="number" min="0" step="0.01" data-item="${index}" data-key="unit_price_cents" value="${(item.unit_price_cents/100).toFixed(2)}"></label><label>USt. %<select data-item="${index}" data-key="vat_percent">${[0,7,19].map(rate=>`<option value="${rate}" ${item.vat_percent===rate?'selected':''}>${rate} %</option>`).join('')}</select></label></div></div>`; }
@@ -87,12 +87,12 @@ const activeCustomers = () => appData.customers;
 let invoiceSort=null;
 let customerFieldsExpanded=false;
 let invoiceFieldsExpanded=false;
-function effectiveDue() {
+function effectiveDue(days=appData.settings?.due_days||14) {
   if(data.due_date) return data.due_date;
   if(!data.date) return '';
   const date=new Date(`${data.date}T12:00:00Z`);
   if(Number.isNaN(date.valueOf())) return '';
-  date.setUTCDate(date.getUTCDate()+Number(appData.settings?.due_days||14));
+  date.setUTCDate(date.getUTCDate()+Number(days));
   return date.toISOString().slice(0,10);
 }
 function numberAvailable() {
@@ -163,7 +163,7 @@ function syncCustomerFields(){
 }
 function renderCustomers() {
   const rows=activeCustomers();
-  document.getElementById('customer-list').innerHTML=rows.length?rows.map(customer=>`<div class="customer-row"><span><strong>${escapeHtml(customer.party.name)}</strong><small>${escapeHtml([customer.party.contact,customer.party.street,customer.party.city].filter(Boolean).join(' · '))}</small></span><button class="button" data-edit-customer="${customer.id}">Bearbeiten</button><button class="button" data-customer-invoice="${customer.id}">Rechnung erstellen</button></div>`).join(''):'<p class="empty-state">Noch keine Kunden gespeichert.</p>';
+  document.getElementById('customer-list').innerHTML=rows.length?rows.map(customer=>`<div class="customer-row"><span><strong>${escapeHtml(customer.party.name)}</strong><small>${escapeHtml([customer.party.contact,customer.party.street,customer.party.city].filter(Boolean).join(' · '))}</small></span><button class="button" data-edit-customer="${customer.id}">Bearbeiten</button><button class="button" data-customer-invoice="${customer.id}">Rechnung erstellen</button><button class="button danger" data-delete-customer="${customer.id}">Löschen</button></div>`).join(''):'<p class="empty-state">Noch keine Kunden gespeichert.</p>';
   const match=selectedCustomer();
   document.getElementById('invoice-customer').innerHTML='<option value="">Neuer Kunde</option>'+rows.map(customer=>`<option value="${customer.id}">${escapeHtml(customer.id===match?.id?data.buyer.name:customer.party.name)}</option>`).join('');
   document.getElementById('invoice-customer').value=match?String(match.id):'';
@@ -201,7 +201,7 @@ function renderTemplates() {
   document.getElementById('template-list').innerHTML=appData.templates.map(name=>`<div class="template-row ${name===selectedTemplate?'selected':''}"><button type="button" class="template-choice" data-view-template="${escapeHtml(name)}"><span class="template-icon">▧</span><span><strong>${escapeHtml(templateLabel(name))}</strong><small>${name===firm?.template?'Aktuelle Vorlage':'HTML · CSS'}</small></span></button><button type="button" class="button ${name===firm?.template?'':'primary'}" data-activate-template="${escapeHtml(name)}" ${name===firm?.template?'disabled':''}>${name===firm?.template?'Aktiv':'Aktivieren'}</button></div>`).join('');
   if(selectedTemplate)showTemplatePreview();
 }
-function splitCompanyCity(city){const match=String(city||'').trim().match(/^(\S+)\s+(.+)$/);return match?{postal_code:match[1],locality:match[2]}:{postal_code:'',locality:city||''};}
+function splitCompanyCity(city){const match=String(city||'').trim().match(/^([A-Z0-9-]*\d[A-Z0-9-]*)\s+(.+)$/i);return match?{postal_code:match[1],locality:match[2]}:{postal_code:'',locality:city||''};}
 function fillSettings() {
   document.getElementById('last-invoice-number').value=activeInvoices()[0]?.number||'Noch keine Rechnung';
   document.querySelectorAll('[data-setting]').forEach(input=>input.value=input.dataset.setting==='hourly_rate_cents'?((appData.settings?.hourly_rate_cents||0)/100).toFixed(2).replace('.',','):appData.settings?.[input.dataset.setting]??'');
@@ -293,19 +293,22 @@ function writeItem(field) {
 document.addEventListener('input',event=>{
   const field=event.target;
   if(field.dataset.setting==='payment_reference_prefix')updateReferenceExample();
+  if(field.dataset.setting==='due_days'&&!data.due_date){document.querySelector('[data-path=due_date]').value=effectiveDue(field.value);}
   if(field.dataset.setting!==undefined)queueSettingsSave();
   if(field.dataset.companyAddress){const postal=document.querySelector('[data-company-address=postal_code]').value.trim();const locality=document.querySelector('[data-company-address=locality]').value.trim();companyDraft.party.city=[postal,locality].filter(Boolean).join(' ');queueSettingsSave();}
+  if(field.dataset.buyerAddress){const postal=document.querySelector('[data-buyer-address=postal_code]').value.trim();const locality=document.querySelector('[data-buyer-address=locality]').value.trim();data.buyer.city=[postal,locality].filter(Boolean).join(' ');preview();markDirty();}
   clearExportFeedback();
   if(field.dataset.path){
     const path=field.dataset.path;
     if(path.startsWith('seller.')){companyDraft.party[path.slice(7)]=field.value;queueSettingsSave();}
-    else{setPath(path,field.value);if(path==='number')numberAvailable();preview();markDirty();}
+    else{setPath(path,field.type==='checkbox'?field.checked:field.value);if(path==='number')numberAvailable();if(path==='date'&&!data.due_date)document.querySelector('[data-path=due_date]').value=effectiveDue();preview();markDirty();}
   }
   if(field.dataset.item!==undefined)writeItem(field);
 });
 document.addEventListener('change',event=>{
   const field=event.target;
   clearExportFeedback();
+  if(field.dataset.path==='service_month'){data.service_month=field.checked;preview();markDirty();}
   if(field.dataset.item!==undefined)writeItem(field);
   if(field.dataset.path==='service_date'||field.dataset.path==='due_date')syncDates();
 });
@@ -342,6 +345,7 @@ document.getElementById('customer-list').addEventListener('click',event=>{
   const button=event.target.closest('button');if(!button)return;
   if(button.dataset.editCustomer)editCustomer(Number(button.dataset.editCustomer));
   else if(button.dataset.customerInvoice){const customer=activeCustomers().find(row=>row.id===Number(button.dataset.customerInvoice));startInvoice(customer).catch(error=>setStatus(String(error)));}
+  else if(button.dataset.deleteCustomer){const id=Number(button.dataset.deleteCustomer);const customer=activeCustomers().find(row=>row.id===id);if(customer&&confirm(`Kunde „${customer.party.name}“ löschen?`)){invoke('delete_customer',{id}).then(()=>{appData.customers=appData.customers.filter(row=>row.id!==id);if(data.customer_id===id){data.customer_id=0;markDirty();}renderCustomers();setStatus('Kunde gelöscht');}).catch(error=>setStatus(String(error)));}}
 });
 let settingsTimer,settingsRevision=0,settingsSavedRevision=0,settingsSaving=null;
 function queueSettingsSave(){settingsRevision++;clearTimeout(settingsTimer);setStatus('Speichert …');settingsTimer=setTimeout(()=>flushSettings().catch(error=>setStatus(String(error))),400);}
@@ -537,6 +541,7 @@ function editCustomer(id=0){
   const party=editingCustomer?.party||emptyParty();
   document.getElementById('customer-dialog-title').textContent=editingCustomer?'Kunde bearbeiten':'Kunde anlegen';
   document.querySelectorAll('[data-customer-field]').forEach(input=>input.value=party[input.dataset.customerField]||'');
+  const city=splitCompanyCity(party.city);document.querySelectorAll('[data-customer-address]').forEach(input=>input.value=city[input.dataset.customerAddress]);
   document.getElementById('customer-error').textContent='';document.getElementById('customer-dialog').showModal();
 }
 document.getElementById('new-customer').addEventListener('click',()=>editCustomer());
@@ -545,6 +550,7 @@ document.getElementById('customer-form').addEventListener('submit',async event=>
   event.preventDefault();const button=event.submitter;button.disabled=true;
   const party={...emptyParty(),...editingCustomer?.party};
   document.querySelectorAll('[data-customer-field]').forEach(input=>party[input.dataset.customerField]=input.value);
+  party.city=[document.querySelector('[data-customer-address=postal_code]').value.trim(),document.querySelector('[data-customer-address=locality]').value.trim()].filter(Boolean).join(' ');
   try{
     const customer=editingCustomer?await invoke('update_customer',{id:editingCustomer.id,party}):await invoke('save_customer',{companyId:appData.active_company_id,party});
     appData.customers=appData.customers.filter(row=>row.id!==customer.id);appData.customers.unshift(customer);

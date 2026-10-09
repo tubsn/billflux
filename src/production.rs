@@ -30,7 +30,7 @@ fn invoice(value: draft::Workspace) -> model::Invoice {
         show_due_date:!value.due_date.is_empty(),
         payment_note:value.payment_note.clone(),
         payment_reference:if value.payment_reference.trim().is_empty(){format!("{}{}",value.payment_reference_prefix,value.number)}else{value.payment_reference.clone()},
-        number:value.number, date:value.date, service_date:value.service_date, due_date:value.due_date,
+        number:value.number, date:value.date, service_date:value.service_date, service_month:value.service_month, due_date:value.due_date,
         subject:value.subject, subject_prefix:value.subject_prefix, account_holder:value.account_holder, iban:value.iban, bic:value.bic,
         bank_name:value.bank_name, seller:party(value.seller), buyer:party(value.buyer),
         items:value.items.into_iter().map(|item| {
@@ -105,7 +105,7 @@ pub fn validate_export(data:&draft::Workspace) -> Result<(),String> {
 
 pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Result<ExportResult, String> {
     validate_export(&data)?;
-    let show_due_date=!data.due_date.is_empty();
+    let show_due_date=true;
     let issued=NaiveDate::parse_from_str(&data.date,"%Y-%m-%d").map_err(|_|"Rechnungsdatum ist ungültig")?;
     if !data.service_date.is_empty(){NaiveDate::parse_from_str(&data.service_date,"%Y-%m-%d").map_err(|_|"Leistungsdatum ist ungültig")?;}
     if data.due_date.is_empty(){data.due_date=(issued+Duration::days(i64::from(store::settings(data.company_id)?.due_days))).format("%Y-%m-%d").to_string();}
@@ -316,6 +316,12 @@ pub fn preview_template(data:draft::Workspace,template_name:String) -> Result<St
     let base=base_dir()?;
     if !store::templates()?.contains(&template_name){return Err("Vorlage nicht gefunden".into());}
     let template_dir=base.join("templates").join(&template_name);
+    let mut data=data;
+    if data.due_date.is_empty() && !data.date.is_empty() {
+        if let Ok(date)=NaiveDate::parse_from_str(&data.date,"%Y-%m-%d") {
+            data.due_date=(date+Duration::days(i64::from(store::settings(data.company_id)?.due_days))).format("%Y-%m-%d").to_string();
+        }
+    }
     let invoice=invoice(data);
     let totals=invoice.finalize()?;
     let template=fs::read_to_string(template_dir.join("invoice.html")).map_err(|e|e.to_string())?;

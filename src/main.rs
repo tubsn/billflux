@@ -25,6 +25,8 @@ fn save_customer(company_id:i64,party:draft::Party) -> Result<store::Customer,St
 #[tauri::command]
 fn update_customer(id:i64,party:draft::Party) -> Result<store::Customer,String> { store::update_customer(id,party) }
 #[tauri::command]
+fn delete_customer(id:i64) -> Result<(),String> { store::delete_customer(id) }
+#[tauri::command]
 fn duplicate_invoice(id:i64,date:String) -> Result<draft::Workspace,String> { store::duplicate_invoice(id,&date) }
 #[tauri::command]
 fn delete_invoice(id:i64) -> Result<(),String> { store::delete_invoice(id) }
@@ -65,7 +67,7 @@ async fn export_invoice(window: tauri::Window, workspace: draft::Workspace) -> R
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_workspace, load_app, select_company, save_settings, save_company_settings, save_customer, update_customer, duplicate_invoice, delete_invoice, save_workspace, create_company, save_company, new_invoice, open_invoice, preview_invoice, preview_template, calculate, export_invoice])
+        .invoke_handler(tauri::generate_handler![load_workspace, load_app, select_company, save_settings, save_company_settings, save_customer, update_customer, delete_customer, duplicate_invoice, delete_invoice, save_workspace, create_company, save_company, new_invoice, open_invoice, preview_invoice, preview_template, calculate, export_invoice])
         .run(tauri::generate_context!())
         .expect("Billflux konnte nicht gestartet werden");
 }

@@ -128,6 +128,10 @@ pub fn save_customer(company_id:i64,party:Party) -> Result<Customer,String> {
     conn.execute("INSERT INTO customers(company_id,data) VALUES(?1,?2)",params![company_id,serde_json::to_string(&party).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
     Ok(Customer{id:conn.last_insert_rowid(),company_id,party})
 }
+pub fn delete_customer(id:i64) -> Result<(),String> {
+    if db()?.execute("DELETE FROM customers WHERE id=?1",params![id]).map_err(|e|e.to_string())?==0 {return Err("Kunde nicht gefunden".into());}
+    Ok(())
+}
 pub fn load_app() -> Result<AppData,String> {
     let conn=db()?;
     let names=templates()?;

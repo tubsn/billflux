@@ -12,6 +12,19 @@ fn escape(value: &str) -> String {
 fn display_money(cents: i64) -> String {
     money(cents).replace('.', ",")
 }
+fn german_date(value:&str) -> String {
+    chrono::NaiveDate::parse_from_str(value,"%Y-%m-%d").map(|date|date.format("%d.%m.%Y").to_string()).unwrap_or_else(|_|value.to_string())
+}
+fn service_period(value:&str,as_month:bool) -> String {
+    use chrono::Datelike;
+    if as_month {
+        if let Ok(date)=chrono::NaiveDate::parse_from_str(value,"%Y-%m-%d") {
+            let months=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+            return format!("{} {}",months[date.month0() as usize],date.format("%Y"));
+        }
+    }
+    german_date(value)
+}
 
 pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
     let rows = invoice.items.iter().enumerate().map(|(index, line)| {
@@ -40,7 +53,10 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
     if !invoice.invoice.seller.economic_id.trim().is_empty(){registration_line.push_str(&format!("<br>W-IdNr: {}",escape(&invoice.invoice.seller.economic_id)));}
     let sender_name=if invoice.invoice.seller.alternative_name.trim().is_empty(){&invoice.invoice.seller.name}else{&invoice.invoice.seller.alternative_name};
     let locality=invoice.invoice.seller.city.split_once(' ').map(|(_,city)|city.trim()).filter(|city|!city.is_empty()).unwrap_or(&invoice.invoice.seller.city);
-    let date_german=chrono::NaiveDate::parse_from_str(&invoice.invoice.date,"%Y-%m-%d").map(|date|date.format("%d.%m.%Y").to_string()).unwrap_or_else(|_|invoice.invoice.date.clone());
+    let date_german=german_date(&invoice.invoice.date);
+    let due_german=german_date(&invoice.invoice.due_date);
+    let service_german=service_period(&invoice.invoice.service_date,invoice.invoice.service_month);
+    let service_meta=if invoice.invoice.service_date.is_empty(){String::new()}else{format!("<br>Leistungszeitraum: {}",escape(&service_german))};
     let heading_start=[invoice.invoice.subject_prefix.trim(),invoice.invoice.number.trim()].into_iter().filter(|part|!part.is_empty()).collect::<Vec<_>>().join(" ");
     let invoice_heading=if invoice.invoice.subject.trim().is_empty(){heading_start}else{format!("{} - {}",heading_start,invoice.invoice.subject.trim())};
     let country_prefix=match invoice.invoice.seller.country.trim().to_uppercase().as_str(){"DE"|"DEU"|"DEUTSCHLAND"=>"D".to_string(),country=>country.to_string()};
@@ -56,16 +72,17 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
         .replace("{{bic_line}}",&bic_line)
         .replace("{{seller_registration_line}}",&registration_line)
         .replace("<p>{{payment_note}}</p>",&if invoice.invoice.payment_note.trim().is_empty(){String::new()}else{format!("<p>{}</p>",escape(&invoice.invoice.payment_note))})
-        .replace("bis zum {{due_date}} ", &if invoice.invoice.show_due_date { format!("bis zum {} ",escape(&invoice.invoice.due_date)) } else { String::new() })
+        .replace("bis zum {{due_date}} ", &if invoice.invoice.show_due_date { format!("bis zum {} ",escape(&due_german)) } else { String::new() })
         .replace("<dt>Verwendung:</dt><dd>{{number}}</dd>","<dt>Verwendung:</dt><dd>{{payment_reference}}</dd>")
         .replace("{{payment_reference}}",&escape(&invoice.invoice.payment_reference))
-        .replace("{{payment_due}}",&if invoice.invoice.show_due_date {format!(" bis zum {}",escape(&invoice.invoice.due_date))}else{String::new()})
+        .replace("{{payment_due}}",&if invoice.invoice.show_due_date {format!(" bis zum {}",escape(&due_german))}else{String::new()})
         .replace("{{number}}", &escape(&invoice.invoice.number))
         .replace("{{date_german}}", &escape(&date_german))
         .replace("{{date}}", &escape(&invoice.invoice.date))
-        .replace("{{service_date}}", &escape(&invoice.invoice.service_date))
-        .replace("{{service_line}}", &if invoice.invoice.service_date.is_empty() { String::new() } else { format!("Leistungsdatum: {}.<br>", escape(&invoice.invoice.service_date)) })
-        .replace("{{due_date}}", &if invoice.invoice.show_due_date {escape(&invoice.invoice.due_date)}else{String::new()})
+        .replace("{{service_date}}", &escape(&service_german))
+        .replace("{{service_meta}}", &service_meta)
+        .replace("{{service_line}}", "")
+        .replace("{{due_date}}", &if invoice.invoice.show_due_date {escape(&due_german)}else{String::new()})
         .replace("{{invoice_heading}}", &escape(&invoice_heading))
         .replace("{{subject}}", &escape(&invoice.invoice.subject))
         .replace("{{sender_name}}", &escape(sender_name))
@@ -119,7 +136,7 @@ mod tests {
         assert!(xml.contains("20261019"));
         assert!(xml.contains("<ram:PaymentReference>AM 2026-42062</ram:PaymentReference>"));
         invoice.show_due_date=true;
-        assert!(super::html(&invoice.finalize().unwrap(),template).contains("bis zum 2026-10-19"));
+        assert!(super::html(&invoice.finalize().unwrap(),template).contains("bis zum 19.10.2026"));
     }
 
     #[test]
@@ -183,5 +200,20 @@ mod tests {
         assert!(html.contains("<footer><div>artMessengers.de<br>"));
         assert!(!html.contains("<div>Inhaber: "));
         assert!(!html.contains("<dt>BIC:</dt>"));
+    }
+    #[test]
+    fn service_period_and_due_date_in_both_themes() {
+        let mut invoice=crate::model::sample();
+        invoice.service_date="2026-08-17".into();
+        invoice.service_month=true;
+        for template in [include_str!("../templates/standard/invoice.html"),include_str!("../templates/example/invoice.html")] {
+            let html=super::html(&invoice.finalize().unwrap(),template);
+            assert!(html.contains("Leistungszeitraum: August 2026"));
+            assert!(html.contains("bis zum 19.10.2026"));
+            assert!(!html.contains("{{service_meta}}"));
+        }
+        invoice.service_month=false;
+        let html=super::html(&invoice.finalize().unwrap(),include_str!("../templates/standard/invoice.html"));
+        assert!(html.contains("Leistungszeitraum: 17.08.2026"));
     }
 }

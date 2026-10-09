@@ -29,9 +29,9 @@ The build also needs Mustang CLI 2.26.0, Ghostscript, a Java 11 runtime, PDFA_de
 
 From PowerShell in the repository root:
 
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-portable.ps1 -KeepBuildCache
+    .\run-build.cmd -KeepBuildCache
 
-The result is dist/Billflux. Omit -KeepBuildCache to remove Cargo build artifacts afterward. The script retains existing databases, exports, and templates in that folder. Run cargo test for the Rust test suite.
+The `.cmd` starter sets the PowerShell execution policy only for its own process, so no separate `Set-ExecutionPolicy` command is needed. The result is dist/Billflux. Omit -KeepBuildCache to remove Cargo build artifacts afterward. The script retains existing databases, exports, and templates in that folder. Run cargo test for the Rust test suite.
 
 ## Templates
 
@@ -49,5 +49,6 @@ Rust crates, including Tauri and rusqlite, are listed in Cargo.toml and Cargo.lo
 - ui/ — Tauri interface.
 - templates/ — source invoice templates.
 - fonts/ — Fira fonts and OFL notices.
-- scripts/build-portable.ps1 — portable Windows build.
+- run-build.cmd — starts the portable Windows build; scripts/build-portable.ps1 and scripts/install-renderer.ps1 are its implementation.
+- tests/manual/ — optional manual UI, PDF, and renderer checks.
 - docs/ — PDF validation and implementation notes.
