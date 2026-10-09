@@ -279,6 +279,41 @@ input::placeholder {
 .item-fields select {
   min-width: 0;
 }
+.quantity-control {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.quantity-control input {
+  width: 100%;
+  padding-right: 27px;
+}
+.quantity-buttons {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  height: 26px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 18px;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.quantity-control:hover .quantity-buttons,
+.quantity-control:focus-within .quantity-buttons { opacity: 1; }
+.quantity-buttons button {
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #888;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.quantity-buttons button:hover:not(:disabled) { color: #747474; }
+.quantity-buttons button:disabled { color: #dedede; cursor: default; }
 .preview-panel {
   position: sticky;
   top: 20px;

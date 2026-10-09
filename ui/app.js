@@ -115,7 +115,7 @@ const unitLabel = (unit, quantity) =>
         : "Tage"
       : unit;
 function itemMarkup(item, index) {
-  return `<div class="item-card" data-index="${index}"><div class="item-top"><button type="button" class="drag-handle" data-drag="${index}" aria-label="Position ${index + 1} verschieben" title="Ziehen oder mit Pfeiltasten verschieben">⠿</button><strong>Position ${index + 1}</strong><button type="button" class="remove-item ${data.items.length > 1 ? "" : "hidden"}" data-remove="${index}" aria-label="Position ${index + 1} entfernen">Entfernen ×</button></div><div class="item-fields"><label class="description">Beschreibung<input data-item="${index}" data-key="description" value="${escapeHtml(item.description)}" placeholder="Leistung oder Produkt"></label><label class="detail">Details<textarea rows="2" data-item="${index}" data-key="detail" placeholder="Weitere Angaben">${escapeHtml(item.detail)}</textarea></label><label>Menge<input type="text" inputmode="decimal" data-item="${index}" data-key="quantity" value="${String(item.quantity).replace(".", ",")}" ${item.unit === "Pauschal" ? "disabled" : ""}></label><label>Einheit<select data-item="${index}" data-key="unit">${["Stück", "Stunden", "Tage", "Pauschal"].map((unit) => `<option value="${unit}" ${item.unit === unit ? "selected" : ""}>${unitLabel(unit, item.quantity)}</option>`).join("")}</select></label><label>Einzelpreis €<input type="number" min="0" step="0.01" data-item="${index}" data-key="unit_price_cents" value="${(item.unit_price_cents / 100).toFixed(2)}"></label><label>USt. %<select data-item="${index}" data-key="vat_percent">${[0, 7, 19].map((rate) => `<option value="${rate}" ${item.vat_percent === rate ? "selected" : ""}>${rate} %</option>`).join("")}</select></label></div></div>`;
+  return `<div class="item-card" data-index="${index}"><div class="item-top"><button type="button" class="drag-handle" data-drag="${index}" aria-label="Position ${index + 1} verschieben" title="Ziehen oder mit Pfeiltasten verschieben">⠿</button><strong>Position ${index + 1}</strong><button type="button" class="remove-item ${data.items.length > 1 ? "" : "hidden"}" data-remove="${index}" aria-label="Position ${index + 1} entfernen">Entfernen ×</button></div><div class="item-fields"><label class="description">Beschreibung<input data-item="${index}" data-key="description" value="${escapeHtml(item.description)}" placeholder="Leistung oder Produkt"></label><label class="detail">Details<textarea rows="2" data-item="${index}" data-key="detail" placeholder="Weitere Angaben">${escapeHtml(item.detail)}</textarea></label><label>Menge<span class="quantity-control"><input type="text" inputmode="decimal" data-item="${index}" data-key="quantity" value="${String(item.quantity).replace(".", ",")}" ${item.unit === "Pauschal" ? "disabled" : ""}><span class="quantity-buttons"><button type="button" data-quantity-step="1" aria-label="Menge um 1 erhöhen" ${item.unit === "Pauschal" ? "disabled" : ""}>▲</button><button type="button" data-quantity-step="-1" aria-label="Menge um 1 verringern" ${item.unit === "Pauschal" || item.quantity <= 1 ? "disabled" : ""}>▼</button></span></span></label><label>Einheit<select data-item="${index}" data-key="unit">${["Stück", "Stunden", "Tage", "Pauschal"].map((unit) => `<option value="${unit}" ${item.unit === unit ? "selected" : ""}>${unitLabel(unit, item.quantity)}</option>`).join("")}</select></label><label>Einzelpreis €<input type="number" min="0" step="1" data-item="${index}" data-key="unit_price_cents" value="${(item.unit_price_cents / 100).toFixed(2)}"></label><label>USt. %<select data-item="${index}" data-key="vat_percent">${[0, 7, 19].map((rate) => `<option value="${rate}" ${item.vat_percent === rate ? "selected" : ""}>${rate} %</option>`).join("")}</select></label></div></div>`;
 }
 function renderItems() {
   document.getElementById("items").innerHTML = data.items.map(itemMarkup).join("");
@@ -720,6 +720,7 @@ function writeItem(field) {
     const select = field.closest(".item-fields").querySelector("[data-key=unit]");
     for (const option of select.options)
       option.textContent = unitLabel(option.value, item.quantity);
+    field.closest(".quantity-control").querySelector('[data-quantity-step="-1"]').disabled = item.quantity <= 1;
   }
   if (key === "unit") {
     if (item.unit === "Pauschal") item.quantity = 1;
@@ -778,6 +779,16 @@ document.addEventListener("change", (event) => {
   if (field.dataset.path === "service_date" || field.dataset.path === "due_date") syncDates();
 });
 document.getElementById("items").addEventListener("click", (event) => {
+  const stepButton = event.target.closest("[data-quantity-step]");
+  if (stepButton) {
+    const field = stepButton.closest(".quantity-control").querySelector("[data-key=quantity]");
+    const current = Number(field.value.replace(",", "."));
+    const next = (Number.isFinite(current) && current > 0 ? current : data.items[Number(field.dataset.item)].quantity) + Number(stepButton.dataset.quantityStep);
+    if (next <= 0) return;
+    field.value = String(Number(next.toFixed(10))).replace(".", ",");
+    writeItem(field);
+    return;
+  }
   const button = event.target.closest("[data-remove]");
   if (!button) return;
   if (document.activeElement?.closest("#items")) document.activeElement.blur();
