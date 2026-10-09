@@ -13,6 +13,36 @@ impl Default for Settings { fn default()->Self{Self{invoice_prefix:String::new()
 pub struct Customer { pub id:i64, pub company_id:i64, pub party:Party }
 #[derive(Serialize)]
 pub struct InvoiceRow { pub id: i64, pub company_id: i64, pub number: String, pub subject:String, pub buyer: String, pub date: String, pub status: String }
+
+#[derive(Serialize)]
+pub struct StatisticInvoice { pub id:i64, pub number:String, pub date:String, pub status:String, pub customer_id:i64, pub customer:String, pub item_count:usize, pub net_cents:i64, pub tax_cents:i64, pub gross_cents:i64, pub hours:f64, pub hourly_net_cents:i64 }
+
+#[derive(Serialize)]
+pub struct StatisticsData { pub invoices:Vec<StatisticInvoice>, pub skipped:usize, pub incomplete:usize }
+
+pub fn statistics(company_id:i64) -> Result<StatisticsData,String> {
+    let conn=db()?;
+    statistics_from_connection(&conn,company_id)
+}
+fn statistics_from_connection(conn:&Connection,company_id:i64) -> Result<StatisticsData,String> {
+    let mut stmt=conn.prepare("SELECT id,number,status,data FROM invoices WHERE company_id=?1 AND deleted_at IS NULL ORDER BY id DESC").map_err(|e|e.to_string())?;
+    let rows=stmt.query_map(params![company_id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?))).map_err(|e|e.to_string())?;
+    let mut invoices=Vec::new(); let mut skipped=0; let mut incomplete=0;
+    for row in rows {
+        let (id,number,status,json)=row.map_err(|e|e.to_string())?;
+        let Ok(data)=serde_json::from_str::<Workspace>(&json) else {skipped+=1;continue};
+        if data.buyer.name.trim().is_empty() || data.items.is_empty() {incomplete+=1;continue;}
+        let Ok(total)=crate::draft::calculate(&data) else {skipped+=1;continue};
+        let mut hours=0.0; let mut hourly_net_cents=0;
+        for (item,line) in data.items.iter().zip(&total.lines) {
+            if matches!(item.unit.trim().to_lowercase().as_str(),"h"|"std"|"std."|"stunde"|"stunden") {
+                hours+=item.quantity; hourly_net_cents+=line.net_cents;
+            }
+        }
+        invoices.push(StatisticInvoice{id,number,date:data.date,status,customer_id:data.customer_id,customer:data.buyer.name,item_count:data.items.len(),net_cents:total.net_cents,tax_cents:total.tax_cents,gross_cents:total.gross_cents,hours,hourly_net_cents});
+    }
+    Ok(StatisticsData{invoices,skipped,incomplete})
+}
 #[derive(Serialize)]
 pub struct AppData { pub workspace: Workspace, pub companies: Vec<Company>, pub invoices: Vec<InvoiceRow>, pub customers:Vec<Customer>, pub templates: Vec<String>, pub settings:Settings, pub active_company_id:i64, pub status: String }
 
@@ -240,6 +270,31 @@ pub fn mark_issued(id:i64,pdf:&str,report:&str) -> Result<(),String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn statistics_separate_companies_and_deleted_invoices() {
+        let conn=Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE invoices(id INTEGER PRIMARY KEY,company_id INTEGER,number TEXT,status TEXT,data TEXT,deleted_at TEXT);").unwrap();
+        let mut invoice=Workspace::default();
+        invoice.buyer.name="Kunde".into();
+        invoice.date="2026-02-01".into();
+        invoice.items[0].quantity=1.5;
+        invoice.items[0].unit_price_cents=101;
+        let json=serde_json::to_string(&invoice).unwrap();
+        for (company,status,deleted) in [(1,"issued",None),(1,"draft",None),(1,"issued",Some("2026-01-01")),(2,"issued",None)] {
+            conn.execute("INSERT INTO invoices(company_id,number,status,data,deleted_at) VALUES(?1,'R',?2,?3,?4)",params![company,status,json,deleted]).unwrap();
+        }
+        let result=statistics_from_connection(&conn,1).unwrap();
+        assert_eq!(result.invoices.len(),2);
+        let issued=result.invoices.iter().find(|row|row.status=="issued").unwrap();
+        assert_eq!(issued.net_cents,152);
+        assert_eq!(issued.hours,1.5);
+        assert_eq!(result.incomplete,0);
+        invoice.buyer.name.clear();
+        conn.execute("INSERT INTO invoices(company_id,number,status,data) VALUES(1,'R','draft',?1)",params![serde_json::to_string(&invoice).unwrap()]).unwrap();
+        let result=statistics_from_connection(&conn,1).unwrap();
+        assert_eq!(result.invoices.len(),2);
+        assert_eq!(result.incomplete,1);
+    }
     #[test]
     fn moving_output_to_logs_updates_saved_invoice_paths() {
         let conn=Connection::open_in_memory().unwrap();

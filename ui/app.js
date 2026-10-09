@@ -74,14 +74,7 @@ function setPath(path, value) {
   object[final] = value;
 }
 function setStatus(message) {
-  const text =
-    message === "Bereit"
-      ? page === "invoice"
-        ? appData.status === "issued"
-          ? "Ausgestellt"
-          : "Entwurf"
-        : ""
-      : message;
+  const text = message === "Bereit" ? "" : message;
   const status = document.getElementById("save-status");
   status.textContent = text;
   status.classList.toggle("hidden", !text);
@@ -353,7 +346,7 @@ function renderMenu() {
       .slice(0, Number(appData.settings?.recent_count || 5))
       .map(
         (row) =>
-          `<button data-open="${row.id}" class="recent-row ${row.id === data.invoice_id && page === "invoice" ? "active" : ""}"><strong>${escapeHtml(row.number)}</strong><small title="${escapeHtml([row.buyer, row.subject].filter(Boolean).join(" · "))}">${escapeHtml([row.buyer, row.subject].filter(Boolean).join(" · ") || "Entwurf")}</small></button>`,
+          `<button data-open="${row.id}" class="recent-row ${row.id === data.invoice_id && page === "invoice" ? "active" : ""}"><strong>${escapeHtml(row.number)}</strong><small title="${escapeHtml([row.buyer, row.subject].filter(Boolean).join(" · "))}">${escapeHtml([row.buyer, row.subject].filter(Boolean).join(" · ") || "Ohne Angaben")}</small></button>`,
       )
       .join("") || '<span class="sidebar-empty">Noch keine Rechnungen</span>';
   document
@@ -366,10 +359,9 @@ function renderInvoices(rows = activeInvoices(), target = "invoice-list") {
     ["date", "Datum"],
     ["buyer", "Empfänger"],
     ["subject", "Betreff"],
-    ["status", "Status"],
   ];
   document.getElementById(target).innerHTML =
-    `<div class="invoice-table-wrap"><table class="invoice-table"><thead><tr>${columns.map(([key, label]) => `<th aria-sort="${invoiceSort?.key === key ? (invoiceSort.direction === 1 ? "ascending" : "descending") : "none"}"><button data-sort="${key}">${label} ${invoiceSort?.key === key ? (invoiceSort.direction === 1 ? "↑" : "↓") : "↕"}</button></th>`).join("")}<th>Aktionen</th></tr></thead><tbody>${rows.length ? rows.map((row) => `<tr><td><button class="invoice-open" data-open="${row.id}">${escapeHtml(row.number)}</button></td><td class="invoice-date">${escapeHtml(row.date || "—")}</td><td>${escapeHtml(row.buyer || "Ohne Empfänger")}</td><td class="invoice-subject">${escapeHtml(row.subject || "Ohne Betreff")}</td><td><span class="invoice-status ${row.status === "issued" ? "issued" : ""}">${row.status === "issued" ? "Ausgestellt" : "Entwurf"}</span></td><td><div class="row-actions"><button class="button" data-duplicate="${row.id}" aria-label="Rechnung ${escapeHtml(row.number)} duplizieren">Duplizieren</button><button class="button danger" data-delete="${row.id}" aria-label="Rechnung ${escapeHtml(row.number)} löschen">Löschen</button></div></td></tr>`).join("") : '<tr><td colspan="6" class="empty-state">Keine Rechnungen gefunden.</td></tr>'}</tbody></table></div>`;
+    `<div class="invoice-table-wrap"><table class="invoice-table"><thead><tr>${columns.map(([key, label]) => `<th aria-sort="${invoiceSort?.key === key ? (invoiceSort.direction === 1 ? "ascending" : "descending") : "none"}"><button data-sort="${key}">${label} ${invoiceSort?.key === key ? (invoiceSort.direction === 1 ? "↑" : "↓") : "↕"}</button></th>`).join("")}<th>Aktionen</th></tr></thead><tbody>${rows.length ? rows.map((row) => `<tr><td><button class="invoice-open" data-open="${row.id}">${escapeHtml(row.number)}</button></td><td class="invoice-date">${escapeHtml(row.date || "—")}</td><td>${escapeHtml(row.buyer || "Ohne Empfänger")}</td><td class="invoice-subject">${escapeHtml(row.subject || "Ohne Betreff")}</td><td><div class="row-actions"><button class="button" data-duplicate="${row.id}" aria-label="Rechnung ${escapeHtml(row.number)} duplizieren">Duplizieren</button><button class="button danger" data-delete="${row.id}" aria-label="Rechnung ${escapeHtml(row.number)} löschen">Löschen</button></div></td></tr>`).join("") : '<tr><td colspan="5" class="empty-state">Keine Rechnungen gefunden.</td></tr>'}</tbody></table></div>`;
 }
 function renderSearch() {
   const query = document.getElementById("search-input").value.trim().toLocaleLowerCase("de-DE");
@@ -388,20 +380,8 @@ function renderSearch() {
     invoiceSort
       ? invoiceSort.direction *
         collator.compare(
-          String(
-            invoiceSort.key === "status"
-              ? a.row.status === "issued"
-                ? "Ausgestellt"
-                : "Entwurf"
-              : a.row[invoiceSort.key] || "",
-          ),
-          String(
-            invoiceSort.key === "status"
-              ? b.row.status === "issued"
-                ? "Ausgestellt"
-                : "Entwurf"
-              : b.row[invoiceSort.key] || "",
-          ),
+          String(a.row[invoiceSort.key] || ""),
+          String(b.row[invoiceSort.key] || ""),
         )
       : a.rank - b.rank,
   );
@@ -594,13 +574,8 @@ function syncUi() {
   fillSettings();
   numberAvailable();
   recalculate();
-  const issued = appData.status === "issued";
   document.getElementById("export-button").disabled = false;
-  document.getElementById("page-title").textContent = issued
-    ? "Rechnung " + data.number
-    : data.invoice_id
-      ? "Rechnung bearbeiten"
-      : "Neue Rechnung";
+  document.getElementById("page-title").textContent = data.invoice_id ? "Rechnung " + data.number : "Neue Rechnung";
 }
 function showPage(next) {
   clearExportFeedback();
@@ -613,7 +588,7 @@ function showPage(next) {
     if (settingsRevision === settingsSavedRevision) fillSettings();
     updateReferenceExample();
   }
-  for (const id of ["invoice", "invoices", "customers", "templates", "settings"])
+  for (const id of ["invoice", "invoices", "customers", "statistics", "templates", "settings"])
     document.getElementById(id + "-page").classList.toggle("hidden", id !== next);
   if (next === "templates") requestAnimationFrame(sizeTemplatePreview);
   const titles = {
@@ -621,6 +596,7 @@ function showPage(next) {
     invoices: ["ÜBERSICHT", "Rechnungen", "Rechnungen der aktuellen Firma"],
     search: ["SUCHE", "Suche", "Rechnungen finden"],
     customers: ["ADRESSBUCH", "Kunden", "Deine Kunden"],
+    statistics: ["AUSWERTUNG", "Statistiken", "Geschäftsentwicklung der aktuellen Firma"],
     templates: ["GESTALTUNG", "Templates", "Vorlagen der aktuellen Firma"],
     settings: ["VOREINSTELLUNGEN", "Einstellungen", "Standardwerte für neue Rechnungen"],
     company: ["FIRMA", "Firmendaten", "Angaben zur aktuellen Firma"],
@@ -629,20 +605,20 @@ function showPage(next) {
   document.getElementById("section-label").textContent = label;
   document.getElementById("page-title").textContent =
     next === "invoice"
-      ? appData.status === "issued"
-        ? "Rechnung " + data.number
-        : data.invoice_id
-          ? "Rechnung bearbeiten"
-          : "Neue Rechnung"
+      ? data.invoice_id ? "Rechnung " + data.number : "Neue Rechnung"
       : title;
   document.getElementById("page-subtitle").textContent =
     next === "settings"
       ? `Einstellungen für ${activeCompany()?.party.name || "die aktuelle Firma"}`
       : subtitle;
   document.getElementById("export-button").classList.toggle("hidden", next !== "invoice");
+  document.querySelector("main > header").classList.toggle("statistics-header", next === "statistics");
+  document.getElementById("stats-header-filters").classList.toggle("hidden", next !== "statistics");
+  document.querySelector(".header-actions").classList.toggle("hidden", next === "statistics");
   document.getElementById("company-popup").classList.add("hidden");
   document.getElementById("company-switch").setAttribute("aria-expanded", "false");
   renderMenu();
+  if (next === "statistics") loadStatistics();
 }
 async function startInvoice(buyer) {
   await flushSettings();
@@ -679,7 +655,7 @@ async function openInvoice(id) {
   savedRevision = 0;
   syncUi();
   showPage("invoice");
-  setStatus(appData.status === "issued" ? "Ausgestellt" : "Entwurf");
+  setStatus("Bereit");
 }
 async function switchCompany(id) {
   const keepSettings = page === "settings";
@@ -1428,7 +1404,7 @@ async function duplicateInvoice(id) {
   paymentFieldsExpanded = false;
   syncUi();
   showPage("invoice");
-  setStatus("Entwurf");
+  setStatus("Bereit");
 }
 let invoiceToDelete = null;
 function requestInvoiceDeletion(id) {
@@ -1468,3 +1444,134 @@ document.getElementById("confirm-delete-invoice").addEventListener("click", asyn
     button.disabled = false;
   }
 });
+let statisticRows = [];
+let statisticSkipped = 0;
+let statisticIncomplete = 0;
+let statisticRequest = 0;
+const statsDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).toLocaleDateString("sv-SE");
+const statsToday = () => new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+const statsRange = () => {
+  const now = statsToday(), year = now.getFullYear(), month = now.getMonth();
+  const period = document.getElementById("stats-period").value;
+  let from, to;
+  if (period === "year") { from = new Date(year, 0, 1); to = now; }
+  else if (period === "previous") { from = new Date(year - 1, 0, 1); to = new Date(year - 1, 11, 31); }
+  else if (period === "quarter") { from = new Date(year, Math.floor(month / 3) * 3, 1); to = now; }
+  else if (period === "month") { from = new Date(year, month, 1); to = now; }
+  else if (period === "twelve") { from = new Date(year, month - 11, 1); to = now; }
+  else if (period === "custom") {
+    from = new Date(document.getElementById("stats-from").value || "1900-01-01");
+    to = new Date(document.getElementById("stats-to").value || statsDate(now));
+  } else { from = new Date(1900, 0, 1); to = now; }
+  return { from: statsDate(from), to: statsDate(to), period };
+};
+const statsSum = (rows, key) => rows.reduce((sum, row) => sum + row[key], 0);
+const statsNumber = (value, digits = 1) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: digits }).format(value);
+const statsDelta = (value, previous, compare) => compare && previous ? `<small class="stats-delta">${value >= previous ? "+" : ""}${statsNumber((value / previous - 1) * 100)} % zum Vorjahr</small>` : "";
+function statsRecords(invoices) {
+  const dated = invoices.filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date));
+  const months = new Map(), weekdays = new Map();
+  for (const row of dated) {
+    const month = row.date.slice(0, 7), group = months.get(month) || [];
+    group.push(row); months.set(month, group);
+    const [year, monthNumber, day] = row.date.split("-").map(Number);
+    const date = new Date(year, monthNumber - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== monthNumber - 1 || date.getDate() !== day) continue;
+    weekdays.set(date.getDay(), (weekdays.get(date.getDay()) || 0) + 1);
+  }
+  const card = (title, value, detail, featured = false) => `<article class="stats-record${featured ? " featured" : ""}"><small>${title}</small><strong>${value}</strong><span>${detail}</span></article>`;
+  const leaders = (entries, score) => {
+    const highest = Math.max(...entries.map(score));
+    return entries.filter((entry) => score(entry) === highest);
+  };
+  const monthEntries = [...months];
+  const bestMonths = monthEntries.length ? leaders(monthEntries, ([, group]) => statsSum(group, "net_cents")) : [];
+  const busiestMonths = monthEntries.length ? leaders(monthEntries, ([, group]) => group.length) : [];
+  const largest = invoices.length ? leaders(invoices, (row) => row.net_cents) : [];
+  const detailed = invoices.length ? leaders(invoices, (row) => row.item_count || 0) : [];
+  const weekdayNames = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const favoriteDays = weekdays.size ? leaders([...weekdays], ([, count]) => count) : [];
+  const totalHours = statsSum(invoices, "hours");
+  const milestones = [100, 250, 500, 1000, 2500, 5000];
+  for (let target = 10000; target <= totalHours; target += 5000) milestones.push(target);
+  const milestone = milestones.filter((target) => target <= totalHours).at(-1);
+  const records = [
+    card("UMSATZSTÄRKSTER MONAT · GESAMTER ZEITRAUM", bestMonths.length ? escapeHtml(bestMonths.map(([month]) => month).slice(0, 3).join(", ")) + (bestMonths.length > 3 ? " …" : "") : "—", bestMonths.length ? `${euro(statsSum(bestMonths[0][1], "net_cents"))} netto${bestMonths.length > 1 ? " · Gleichstand" : ""}` : "Noch keine Rechnung mit Datum", true),
+    card("GRÖSSTE RECHNUNG · GESAMTER ZEITRAUM", largest.length ? euro(largest[0].net_cents) : "—", largest.length ? `${escapeHtml(largest.map((row) => row.number).slice(0, 3).join(", "))}${largest.length > 3 ? " …" : ""}${largest.length > 1 ? " · Gleichstand" : ""}` : "Noch keine Rechnung", true),
+    card("AUSFÜHRLICHSTE RECHNUNG · GESAMTER ZEITRAUM", detailed.length ? `${detailed[0].item_count} Positionen` : "—", detailed.length ? `${escapeHtml(detailed.map((row) => row.number).slice(0, 3).join(", "))}${detailed.length > 3 ? " …" : ""}${detailed.length > 1 ? " · Gleichstand" : ""}` : "Noch keine Rechnung"),
+    card("RECHNUNGSREICHSTER MONAT · GESAMTER ZEITRAUM", busiestMonths.length ? escapeHtml(busiestMonths.map(([month]) => month).slice(0, 3).join(", ")) + (busiestMonths.length > 3 ? " …" : "") : "—", busiestMonths.length ? `${busiestMonths[0][1].length} Rechnungen${busiestMonths.length > 1 ? " · Gleichstand" : ""}` : "Noch keine Rechnung mit Datum"),
+    card("LIEBLINGS-RECHNUNGSTAG · GESAMTER ZEITRAUM", favoriteDays.length ? favoriteDays.map(([day]) => weekdayNames[day]).join(", ") : "—", favoriteDays.length ? `${favoriteDays[0][1]} Rechnungsdaten${favoriteDays.length > 1 ? " · Gleichstand" : ""}` : "Noch keine Rechnung mit Datum"),
+    card("STUNDENMEILENSTEIN · GESAMTER ZEITRAUM", milestone ? `${statsNumber(milestone, 0)} h` : "Noch offen", `${statsNumber(totalHours, 2)} h insgesamt abgerechnet`),
+  ];
+  return `<section class="card stats-records"><div class="card-heading"><span class="step">★</span><div><h2>Kleine Rekorde</h2><p>Ein paar Fundstücke aus allen Rechnungen der Firma.</p></div></div><div class="stats-record-grid">${records.join("")}</div></section>`;
+}
+async function loadStatistics() {
+  const request = ++statisticRequest, companyId = appData.active_company_id;
+  document.getElementById("stats-content").innerHTML = '<div class="card">Statistiken werden geladen …</div>';
+  try {
+    const result = invoke ? await invoke("load_statistics", { companyId }) : { invoices: [], skipped: 0, incomplete: 0 };
+    if (request !== statisticRequest || page !== "statistics" || companyId !== appData.active_company_id) return;
+    statisticRows = result.invoices;
+    statisticSkipped = result.skipped;
+    statisticIncomplete = result.incomplete;
+    const select = document.getElementById("stats-customer"), current = select.value;
+    select.innerHTML = '<option value="all">Alle Kunden</option><option value="unassigned">Ohne Kundenzuordnung</option>' + appData.customers.filter((customer) => customer.company_id === companyId).map((customer) => `<option value="${customer.id}">${escapeHtml(customer.party.name || "Kunde " + customer.id)}</option>`).join("");
+    select.value = [...select.options].some((option) => option.value === current) ? current : "all";
+    renderStatistics();
+  } catch (error) { document.getElementById("stats-content").textContent = String(error); }
+}
+function renderStatistics() {
+  const { from, to, period } = statsRange();
+  document.querySelectorAll(".stats-custom-date").forEach((label) => label.classList.toggle("hidden", period !== "custom"));
+  const customer = document.getElementById("stats-customer").value;
+  const compare = document.getElementById("stats-compare").checked && period !== "all";
+  const matchCustomer = (row) => customer === "all" || (customer === "unassigned" ? !row.customer_id : row.customer_id === Number(customer));
+  const eligible = statisticRows.filter(matchCustomer);
+  const rows = eligible.filter((row) => row.date >= from && row.date <= to);
+  const previousFrom = String(Number(from.slice(0, 4)) - 1) + from.slice(4);
+  const previousTo = String(Number(to.slice(0, 4)) - 1) + to.slice(4);
+  const prior = compare ? eligible.filter((row) => row.date >= previousFrom && row.date <= previousTo) : [];
+  const net = statsSum(rows, "net_cents"), prevNet = statsSum(prior, "net_cents"), hours = statsSum(rows, "hours");
+  const active = new Set(rows.filter((row) => row.customer_id).map((row) => row.customer_id)).size;
+  const warning = document.getElementById("stats-warning");
+  warning.textContent = [statisticIncomplete ? `${statisticIncomplete} Rechnung(en) ohne Kunde oder Position sind nicht enthalten.` : "", statisticSkipped ? `${statisticSkipped} Rechnung(en) konnten nicht berechnet werden.` : "", rows.some((row) => !/^\d{4}-\d{2}-\d{2}$/.test(row.date)) ? "Rechnungen ohne gültiges Datum sind keinem Monat zugeordnet." : ""].filter(Boolean).join(" ");
+  warning.classList.toggle("hidden", !warning.textContent);
+  const months = new Map();
+  if (period !== "all" && from <= to) {
+    let cursor = new Date(Number(from.slice(0, 4)), Number(from.slice(5, 7)) - 1, 1);
+    const end = new Date(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, 1);
+    for (let i = 0; cursor <= end && i < 120; i++, cursor.setMonth(cursor.getMonth() + 1)) months.set(statsDate(cursor).slice(0, 7), []);
+  }
+  rows.forEach((row) => { const key = row.date.slice(0, 7); if (/^\d{4}-\d{2}$/.test(key)) months.set(key, [...(months.get(key) || []), row]); });
+  const monthRows = [...months].sort(([a], [b]) => a.localeCompare(b));
+  const max = Math.max(1, ...monthRows.map(([, values]) => statsSum(values, "net_cents")));
+  const byCustomer = new Map();
+  rows.forEach((row) => {
+    const key = row.customer_id || 0, entry = byCustomer.get(key) || { name: key ? appData.customers.find((c) => c.id === key)?.party.name || row.customer || `Kunde ${key}` : "Ohne Kundenzuordnung", rows: [] };
+    entry.rows.push(row); byCustomer.set(key, entry);
+  });
+  const customers = [...byCustomer.values()].sort((a, b) => statsSum(b.rows, "net_cents") - statsSum(a.rows, "net_cents"));
+  document.getElementById("stats-content").innerHTML = `
+    ${!rows.length ? '<section class="card stats-empty"><h2>Keine Rechnungen in diesem Zeitraum</h2><p>Wähle einen anderen Zeitraum oder lege eine Rechnung mit Kunde und mindestens einer Position an.</p></section>' : ""}
+    <section class="stats-overview">
+      <div class="card stats-revenue"><span class="stats-label">RECHNUNGSVOLUMEN · NETTO</span><strong>${euro(net)}</strong><span class="stats-revenue-sub">${rows.length} Rechnungen im gewählten Zeitraum ${statsDelta(net, prevNet, compare)}</span><div class="stats-gross"><span>Brutto <small>inkl. USt</small></span><strong>${euro(statsSum(rows, "gross_cents"))}</strong></div></div>
+      <div class="stats-overview-side"><div class="card stats-priority"><span class="stats-label">UMSATZSTEUER</span><strong>${euro(statsSum(rows, "tax_cents"))}</strong><small>Aus den Rechnungen berechnet</small></div><div class="card stats-priority"><span class="stats-label">ABGERECHNETE STUNDEN</span><strong>${statsNumber(hours, 2)} <em>h</em></strong><small>Nur Positionen mit Stundeneinheit</small></div></div>
+    </section>
+    <div class="stats-secondary">
+      <div><small>Rechnungen</small><strong>${statsNumber(rows.length, 0)}</strong>${statsDelta(rows.length, prior.length, compare)}</div>
+      <div><small>Aktive Kunden</small><strong>${statsNumber(active, 0)}</strong></div>
+      <div><small>Ø Rechnungsbetrag</small><strong>${rows.length ? euro(Math.round(net / rows.length)) : "—"}</strong></div>
+      <div><small>Ø Stundensatz</small><strong>${hours ? euro(Math.round(statsSum(rows, "hourly_net_cents") / hours)) : "—"}</strong></div>
+    </div>
+    <div class="stats-analysis-grid"><section class="card stats-trend"><div class="card-heading"><span class="step">▥</span><div><h2>Monatlicher Nettoumsatz</h2><p>Verlauf nach Rechnungsdatum${compare ? " · Vorjahresvergleich oben in den Kennzahlen" : ""}</p></div></div>${monthRows.length ? monthRows.map(([month, values]) => `<div class="stats-bar-row"><span>${escapeHtml(month)}</span><div class="stats-bar-track"><div style="width:${Math.max(0, statsSum(values, "net_cents") / max * 100)}%"></div></div><strong>${euro(statsSum(values, "net_cents"))}</strong></div>`).join("") : '<p class="empty-state">Keine Rechnungen im Zeitraum.</p>'}</section>
+    <section class="card stats-customers"><div class="card-heading"><span class="step">◉</span><div><h2>Kunden nach Nettoumsatz</h2><p>Anteil am Rechnungsvolumen</p></div></div><div class="stats-customer-list">${customers.map((entry) => { const amount = statsSum(entry.rows, "net_cents"), share = net ? amount / net * 100 : 0; return `<div class="stats-customer-row"><div class="stats-customer-head"><strong title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</strong><b>${euro(amount)}</b></div><div class="stats-customer-track"><span style="width:${Math.max(0, Math.min(100, share))}%"></span></div><small>${net ? statsNumber(share) + " %" : "—"} · ${entry.rows.length} Rechnungen · ${statsNumber(statsSum(entry.rows, "hours"), 2)} h</small></div>`; }).join("") || '<p class="empty-state">Keine Kundenumsätze im Zeitraum.</p>'}</div></section></div>
+    <section class="card stats-table-card"><div class="card-heading"><div><h2>Monatsübersicht</h2></div><button class="button" id="stats-export">CSV exportieren</button></div><div class="stats-table-wrap"><table><thead><tr><th>Monat</th><th>Rechnungen</th><th>Kunden</th><th>Stunden</th><th>Netto</th><th>USt</th><th>Brutto</th></tr></thead><tbody>${monthRows.map(([month, values]) => `<tr><td>${month}</td><td>${values.length}</td><td>${new Set(values.filter((row) => row.customer_id).map((row) => row.customer_id)).size}</td><td>${statsNumber(statsSum(values, "hours"), 2)}</td><td>${euro(statsSum(values, "net_cents"))}</td><td>${euro(statsSum(values, "tax_cents"))}</td><td>${euro(statsSum(values, "gross_cents"))}</td></tr>`).join("") || '<tr><td colspan="7">Keine Rechnungen im Zeitraum.</td></tr>'}</tbody></table></div></section>
+    ${statsRecords(statisticRows)}`;
+  document.getElementById("stats-export").onclick = () => {
+    const lines = [["Monat", "Rechnungen", "Aktive Kunden", "Stunden", "Netto EUR", "USt EUR", "Brutto EUR"], ...monthRows.map(([month, values]) => [month, values.length, new Set(values.filter((row) => row.customer_id).map((row) => row.customer_id)).size, statsSum(values, "hours"), statsSum(values, "net_cents") / 100, statsSum(values, "tax_cents") / 100, statsSum(values, "gross_cents") / 100])];
+    const csv = "\uFEFF" + lines.map((line) => line.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "billflux-statistiken.csv"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+}
+for (const id of ["stats-period", "stats-from", "stats-to", "stats-customer", "stats-compare"]) document.getElementById(id).addEventListener("change", renderStatistics);

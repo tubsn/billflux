@@ -20,6 +20,7 @@
         <nav>
           <button class="nav" data-page="invoices">▦ <span>Rechnungen</span></button>
           <button class="nav" data-page="customers">◉ <span>Kunden</span></button>
+          <button class="nav" data-page="statistics">▥ <span>Statistiken</span></button>
           <button class="nav" data-page="templates">▧ <span>Templates</span></button>
           <button class="nav" data-page="settings">⚙ <span>Einstellungen</span></button>
         </nav>
@@ -38,10 +39,17 @@
       </aside>
       <main>
         <header>
-          <div>
+          <div class="header-title">
             <div class="eyebrow" id="section-label">RECHNUNG</div>
             <h1 id="page-title">Rechnung</h1>
             <p id="page-subtitle">Deine Rechnungsdaten</p>
+          </div>
+          <div class="stats-header-filters hidden" id="stats-header-filters">
+            <label>Zeitraum<select id="stats-period"><option value="year">Dieses Jahr</option><option value="previous">Vorjahr</option><option value="quarter">Dieses Quartal</option><option value="month">Dieser Monat</option><option value="twelve">Letzte zwölf Monate</option><option value="all">Gesamter Zeitraum</option><option value="custom">Eigener Zeitraum</option></select></label>
+            <label class="stats-custom-date hidden">Von<input id="stats-from" type="date" /></label>
+            <label class="stats-custom-date hidden">Bis<input id="stats-to" type="date" /></label>
+            <label>Kunde<select id="stats-customer"><option value="all">Alle Kunden</option></select></label>
+            <label class="stats-compare-label"><input id="stats-compare" type="checkbox" /> Vorjahr vergleichen</label>
           </div>
           <div class="header-actions">
             <button class="button hidden" id="create-company-button">＋ Neue Firma anlegen</button
@@ -213,6 +221,10 @@
             <p class="section-intro">Gemeinsames Adressbuch für alle Firmen.</p>
             <div id="customer-list"></div>
           </div>
+        </div>
+        <div class="statistics-page hidden" id="statistics-page">
+          <p id="stats-warning" class="stats-warning hidden"></p>
+          <div id="stats-content"></div>
         </div>
         <div class="invoices-page hidden" id="templates-page">
           <div class="templates-layout">
