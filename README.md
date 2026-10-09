@@ -29,9 +29,11 @@ The build also needs Mustang CLI 2.26.0, Ghostscript, a Java 11 runtime, PDFA_de
 
 From PowerShell in the repository root:
 
-    .\run-build.cmd -KeepBuildCache
+    .\run-build.cmd
 
-The `.cmd` starter sets the PowerShell execution policy only for its own process, so no separate `Set-ExecutionPolicy` command is needed. The result is dist/Billflux. Omit -KeepBuildCache to remove Cargo build artifacts afterward. The script retains existing databases, exports, and templates in that folder. Run cargo test for the Rust test suite.
+The `.cmd` starter sets the PowerShell execution policy only for its own process, so no separate `Set-ExecutionPolicy` command is needed. Cargo keeps its build cache for faster subsequent builds. Use `.\run-build.cmd -CleanBuildCache` only when you want to remove the build cache after packaging. The result is dist/Billflux. The script retains existing databases, exports, and templates in that folder. Run cargo test for the Rust test suite.
+
+To move an existing installation as one file, close Billflux and ZIP the complete `dist/Billflux` folder. Unpack it before starting `Billflux.exe`; the external PDF tools in `bin/` need real files on disk. The ZIP also contains any invoices and database already stored in that folder.
 
 ## Templates
 
@@ -47,8 +49,10 @@ Rust crates, including Tauri and rusqlite, are listed in Cargo.toml and Cargo.lo
 
 - src/ — Rust application, invoice model, HTML/XML generation, and PDF export.
 - ui/ — Tauri interface.
-- templates/ — source invoice templates.
-- fonts/ — Fira fonts and OFL notices.
+- templates/ — the example source invoice template. Existing templates in dist/Billflux/templates remain untouched by the build.
+- assets/ — Fira fonts, the Windows icon, and bundled license text.
+- gen/ — generated Tauri schemas; ignored by Git and recreated as needed.
+- capabilities/ — an intentionally present directory so Tauri can reuse its build cache.
 - run-build.cmd — starts the portable Windows build; scripts/build-portable.ps1 and scripts/install-renderer.ps1 are its implementation.
 - tests/manual/ — optional manual UI, PDF, and renderer checks.
 - docs/ — PDF validation and implementation notes.

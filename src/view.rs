@@ -102,7 +102,7 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
             &escape(&invoice.invoice.seller.tax_number),
         )
         .replace("{{seller_vat_id}}", &escape(&invoice.invoice.seller.vat_id))
-        .replace("{{buyer_name}}", &format!("{}{}",escape(&invoice.invoice.buyer.name),if invoice.invoice.buyer.contact.is_empty(){String::new()}else{format!("<br>{}",escape(&invoice.invoice.buyer.contact))}))
+        .replace("{{buyer_name}}", &format!("{}{}{}",escape(&invoice.invoice.buyer.name),if invoice.invoice.buyer.contact.is_empty(){String::new()}else{format!("<br>{}",escape(&invoice.invoice.buyer.contact))},if invoice.invoice.buyer.additional_info.is_empty(){String::new()}else{format!("<br>{}",escape(&invoice.invoice.buyer.additional_info))}))
         .replace("{{buyer_street}}", &escape(&invoice.invoice.buyer.street))
         .replace("{{buyer_city}}", &escape(&invoice.invoice.buyer.city))
         .replace(
@@ -127,7 +127,7 @@ mod tests {
         invoice.show_due_date=false;
         invoice.payment_reference="AM 2026-42062".into();
         let finalized=invoice.finalize().unwrap();
-        let template=include_str!("../templates/standard/invoice.html");
+        let template=include_str!("../tests/fixtures/standard/invoice.html");
         let html=super::html(&finalized,template);
         assert!(!html.contains("bis zum"));
         assert!(!html.contains(&invoice.due_date));
@@ -143,7 +143,7 @@ mod tests {
     fn invoice_identity_and_optional_payment_details() {
         let mut invoice=crate::model::sample();
         invoice.payment_note="Danke für Ihren Auftrag.".into();
-        let template=include_str!("../templates/standard/invoice.html");
+        let template=include_str!("../tests/fixtures/standard/invoice.html");
         let html=super::html(&invoice.finalize().unwrap(),template);
         assert!(html.contains("<div class=\"wordmark\"><span class=\"wordmark-art\">art</span><span class=\"wordmark-rest\">Messengers.de</span></div>"));
         assert!(html.contains("<small><i></i>artMessengers.de</small>"));
@@ -160,7 +160,7 @@ mod tests {
     fn tax_ids_follow_tax_number_in_footer() {
         let mut invoice=crate::model::sample();
         invoice.seller.economic_id="DE123456789-00001".into();
-        let template=include_str!("../templates/standard/invoice.html");
+        let template=include_str!("../tests/fixtures/standard/invoice.html");
         let html=super::html(&invoice.finalize().unwrap(),template);
         assert!(html.contains("W-IdNr: DE123456789-00001"));
         assert!(html.contains("Steuernummer: 00/000/00000<br>USt-IdNr.: DE123456789<br>W-IdNr: DE123456789-00001"));
@@ -178,7 +178,7 @@ mod tests {
         invoice.subject_prefix="Honorar".into();
         invoice.subject="Ai Buddy Krams".into();
         invoice.bank_name="Deutsche Kreditbank AG".into();
-        let html=super::html(&invoice.finalize().unwrap(),include_str!("../templates/standard/invoice.html"));
+        let html=super::html(&invoice.finalize().unwrap(),include_str!("../tests/fixtures/standard/invoice.html"));
         assert!(html.contains("<strong>Artmessengers</strong>"));
         assert!(html.contains("<small><i></i>artMessengers.de</small>"));
         assert!(html.contains("Cottbus, den 07.10.2026"));
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn copied_company_template_uses_current_footer() {
         let invoice=crate::model::sample();
-        let old=include_str!("../templates/standard/invoice.html")
+        let old=include_str!("../tests/fixtures/standard/invoice.html")
             .replace("<footer><div>{{sender_name}}<br>{{seller_street}}<br>{{seller_postal_city}}</div>","<footer><div>{{seller_name}}<br>{{seller_street}}<br>{{seller_city}}</div>")
             .replace("<div>{{bank_name}}<br>IBAN: {{iban}}{{bic_line}}</div></footer>","<div>Inhaber: {{account_holder}}<br>Verwendung: {{payment_reference}}<br>IBAN: {{iban}}{{bic_line}}</div></footer>")
             .replace("<dd>{{iban}}</dd></dl>","<dd>{{iban}}</dd>{{bic_entry}}</dl>");
@@ -206,14 +206,26 @@ mod tests {
         let mut invoice=crate::model::sample();
         invoice.service_date="2026-08-17".into();
         invoice.service_month=true;
-        for template in [include_str!("../templates/standard/invoice.html"),include_str!("../templates/example/invoice.html")] {
+        for template in [include_str!("../tests/fixtures/standard/invoice.html"),include_str!("../templates/example/invoice.html")] {
             let html=super::html(&invoice.finalize().unwrap(),template);
             assert!(html.contains("Leistungszeitraum: August 2026"));
             assert!(html.contains("bis zum 19.10.2026"));
             assert!(!html.contains("{{service_meta}}"));
         }
         invoice.service_month=false;
-        let html=super::html(&invoice.finalize().unwrap(),include_str!("../templates/standard/invoice.html"));
+        let html=super::html(&invoice.finalize().unwrap(),include_str!("../tests/fixtures/standard/invoice.html"));
         assert!(html.contains("Leistungszeitraum: 17.08.2026"));
+    }
+    #[test]
+    fn buyer_additional_info_follows_contact() {
+        let mut invoice=crate::model::sample();
+        invoice.buyer.contact="Buchhaltung".into();
+        invoice.buyer.additional_info="Gebäude B, 2. Etage".into();
+        for template in [include_str!("../tests/fixtures/standard/invoice.html"),include_str!("../templates/example/invoice.html")] {
+            let html=super::html(&invoice.finalize().unwrap(),template);
+            assert!(html.contains("Beispielkunde GmbH<br>Buchhaltung<br>Gebäude B, 2. Etage"));
+        }
+        let xml=crate::xml::render(&invoice.finalize().unwrap());
+        assert!(xml.contains("<ram:LineThree>Gebäude B, 2. Etage</ram:LineThree>"));
     }
 }

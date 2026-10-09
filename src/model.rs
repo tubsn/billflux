@@ -5,6 +5,7 @@ pub struct Party {
     pub name: String,
     pub alternative_name: String,
     pub contact:String,
+    pub additional_info:String,
     pub street: String,
     pub city: String,
     pub country: String,
@@ -122,6 +123,7 @@ pub fn sample() -> Invoice {
         bank_name: "Musterbank".into(),
         seller: Party {
             contact:String::new(),
+            additional_info:String::new(),
             name: "artMessengers.de".into(),
             alternative_name: String::new(),
             street: "Musterstraße 12".into(),
@@ -136,6 +138,7 @@ pub fn sample() -> Invoice {
         },
         buyer: Party {
             contact:String::new(),
+            additional_info:String::new(),
             name: "Beispielkunde GmbH".into(),
             alternative_name: String::new(),
             street: "Beispielweg 5".into(),

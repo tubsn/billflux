@@ -1,65 +1,412 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Billflux</title><link rel="stylesheet" href="style.css"></head>
-<body><div class="app">
-<aside class="sidebar">
-  <div class="brand"><span class="brand-mark">b</span><span>billflux<small>RECHNUNGEN</small></span></div>
-  <button class="side-new" id="sidebar-new">＋ Neue Rechnung</button>
-  <div class="sidebar-heading">LETZTE RECHNUNGEN</div><div id="recent-invoices" class="recent-invoices"></div>
-  <nav>
-    <button class="nav" data-page="invoices">▦ <span>Rechnungen</span></button>
-    <button class="nav" data-page="customers">◉ <span>Kunden</span></button>
-    <button class="nav" data-page="templates">▧ <span>Templates</span></button>
-    <button class="nav" data-page="settings">⚙ <span>Einstellungen</span></button>
-  </nav>
-  <div class="company-switch-wrap"><button id="company-switch" class="company-switch" aria-expanded="false"><span class="company-avatar">F</span><span class="company-switch-label"><small>AKTUELLE FIRMA</small><strong id="current-company-name">Firma</strong></span><span>⌃</span></button><div id="company-popup" class="company-popup hidden"><div class="popup-label">Firma wechseln</div><div id="company-options"></div></div></div>
-</aside>
-<main><header><div><div class="eyebrow" id="section-label">RECHNUNG</div><h1 id="page-title">Rechnung</h1><p id="page-subtitle">Deine Rechnungsdaten</p></div><div class="header-actions"><button class="button hidden" id="create-company-button">＋ Neue Firma anlegen</button><span id="save-status" aria-live="polite"></span><button class="button primary" id="export-button">PDF Exportieren</button></div></header><div id="export-result" class="export-result hidden" role="status"></div>
-<div class="workspace" id="invoice-page"><section class="editor">
-  <div class="card"><div class="card-heading"><span class="step">01</span><div><h2>Rechnungsdaten</h2></div><button type="button" id="toggle-invoice-fields" class="text-button" aria-expanded="false" aria-controls="invoice-extra-fields">alle Felder</button></div><div class="fields two">
-    <label class="wide">Betreff<input data-path="subject" placeholder="Worum geht es?"></label>
-    <label>Rechnungsnummer<input data-path="number" placeholder="2026-0001"></label>
-    <label>Rechnungsdatum<input type="date" data-path="date"></label>
-    <div id="invoice-extra-fields" class="fields two wide hidden"><label>Betreff-Präfix<input data-path="subject_prefix" placeholder="Rechnung"></label><label>Fälligkeitsdatum<input type="date" data-path="due_date"></label><label>Leistungsdatum<input type="date" data-path="service_date"></label><label class="checkbox-label"><input type="checkbox" data-path="service_month">Leistungszeitraum als Monat</label></div>
-  </div></div>
-  <div class="card"><div class="card-heading"><span class="step">02</span><div><h2>Kunde / Empfänger</h2></div><button type="button" id="toggle-customer-fields" class="text-button" aria-expanded="false" aria-controls="customer-extra-fields">alle Felder</button></div><div class="fields two">
-    <label class="wide">Kunde<select id="invoice-customer"><option value="">Neuer Kunde</option></select></label>
-    <label class="wide customer-basic">Firmenname / Name<input data-path="buyer.name" placeholder="Kundenname"></label>
-    <label class="wide customer-basic">Ansprechpartner / Abteilung (optional)<input data-path="buyer.contact"></label>
-    <label class="customer-basic">Straße und Hausnummer<input data-path="buyer.street" placeholder="Musterstraße 12"></label>
-    <label class="customer-basic">PLZ<input data-buyer-address="postal_code" autocomplete="postal-code"></label><label class="customer-basic">Ort<input data-buyer-address="locality" autocomplete="address-level2"></label><div id="customer-extra-fields" class="fields two wide hidden"><label>Land<input data-path="buyer.country" placeholder="DE"></label>
-    <label>E-Mail<input type="email" data-path="buyer.email" placeholder="kontakt@beispiel.de"></label><label>USt-IdNr. (optional)<input data-path="buyer.vat_id"></label></div>
-  </div><button class="button subtle" id="save-customer-button">Kunden speichern</button></div>
-  <div class="card"><div class="card-heading"><span class="step">03</span><div><h2>Positionen</h2></div><button type="button" class="add-item-button" id="add-item" aria-label="Position hinzufügen" title="Position hinzufügen">+</button></div><div id="items"></div></div>
-  <div class="card payment-card"><div class="card-heading"><span class="step">04</span><div><h2>Zahlungsdaten</h2><small id="payment-summary">Bankverbindung für diese Rechnung</small></div><button type="button" id="toggle-payment-fields" class="text-button" aria-expanded="false" aria-controls="payment-fields">alle Felder</button></div><div class="fields two payment-fields hidden" id="payment-fields"><label class="wide">Verwendungszweck<input data-path="payment_reference" placeholder="Automatisch aus Präfix und Rechnungsnummer"></label><label class="wide">Abschlusssatz<textarea data-path="payment_note" rows="2"></textarea></label><label>Kontoinhaber<input data-path="account_holder"></label><label>Bank<input data-path="bank_name"></label><label>IBAN<input data-path="iban"></label><label>BIC<input data-path="bic"></label>
-</div></div>
-</section><aside class="preview-panel"><div class="paper-wrap"><article class="paper" id="preview"></article></div></aside></div>
-<div class="invoices-page hidden" id="invoices-page"><div class="card"><div class="card-heading"><span class="step">▦</span><div><h2>Rechnungen</h2></div></div><label>Rechnungsnummer, Betreff oder Empfänger<input id="search-input" placeholder="Rechnungen durchsuchen" autocomplete="off"></label><div id="invoice-list"></div></div></div>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Billflux</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-mark" src="billflux.svg" alt="" /><span
+            >billflux<small>RECHNUNGEN</small></span
+          >
+        </div>
+        <button class="side-new" id="sidebar-new">＋ Neue Rechnung</button>
+        <div class="sidebar-heading">LETZTE RECHNUNGEN</div>
+        <div id="recent-invoices" class="recent-invoices"></div>
+        <nav>
+          <button class="nav" data-page="invoices">▦ <span>Rechnungen</span></button>
+          <button class="nav" data-page="customers">◉ <span>Kunden</span></button>
+          <button class="nav" data-page="templates">▧ <span>Templates</span></button>
+          <button class="nav" data-page="settings">⚙ <span>Einstellungen</span></button>
+        </nav>
+        <div class="company-switch-wrap">
+          <button id="company-switch" class="company-switch" aria-expanded="false">
+            <span id="current-company-initial" class="company-avatar">?</span
+            ><span class="company-switch-label"
+              ><small>AKTUELLE FIRMA</small><strong id="current-company-name">Firma</strong></span
+            ><span>⌃</span>
+          </button>
+          <div id="company-popup" class="company-popup hidden">
+            <div class="popup-label">Firma wechseln</div>
+            <div id="company-options"></div>
+          </div>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <div class="eyebrow" id="section-label">RECHNUNG</div>
+            <h1 id="page-title">Rechnung</h1>
+            <p id="page-subtitle">Deine Rechnungsdaten</p>
+          </div>
+          <div class="header-actions">
+            <button class="button hidden" id="create-company-button">＋ Neue Firma anlegen</button
+            ><span id="save-status" aria-live="polite"></span
+            ><button class="button primary" id="export-button">PDF Exportieren</button>
+          </div>
+        </header>
+        <div id="export-result" class="export-result hidden" role="status"></div>
+        <div class="workspace" id="invoice-page">
+          <section class="editor">
+            <div class="card">
+              <div class="card-heading">
+                <span class="step">01</span>
+                <div><h2>Rechnungsdaten</h2></div>
+                <button
+                  type="button"
+                  id="toggle-invoice-fields"
+                  class="text-button"
+                  aria-expanded="false"
+                  aria-controls="invoice-extra-fields"
+                >
+                  alle Felder
+                </button>
+              </div>
+              <div class="fields two">
+                <label class="wide"
+                  >Betreff<input data-path="subject" placeholder="Worum geht es?"
+                /></label>
+                <label>Rechnungsnummer<input data-path="number" placeholder="2026-0001" /></label>
+                <label>Rechnungsdatum<input type="date" data-path="date" /></label>
+                <div id="invoice-extra-fields" class="fields two wide hidden">
+                  <label
+                    >Betreff-Präfix<input
+                      data-path="subject_prefix"
+                      placeholder="Rechnung" /></label
+                  ><label>Fälligkeitsdatum<input type="date" data-path="due_date" /></label
+                  ><label>Leistungsdatum<input type="date" data-path="service_date" /></label
+                  ><label class="checkbox-label"
+                    ><input type="checkbox" data-path="service_month" />Leistungszeitraum als
+                    Monat</label
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-heading">
+                <span class="step">02</span>
+                <div><h2>Kunde / Empfänger</h2></div>
+                <button
+                  type="button"
+                  id="toggle-customer-fields"
+                  class="text-button"
+                  aria-expanded="false"
+                  aria-controls="customer-extra-fields"
+                >
+                  alle Felder
+                </button>
+              </div>
+              <div class="fields two">
+                <label class="wide"
+                  >Kunde<select id="invoice-customer">
+                    <option value="">Neuer Kunde</option>
+                  </select></label
+                >
+                <label class="wide customer-basic"
+                  >Firmenname / Name<input data-path="buyer.name" placeholder="Kundenname"
+                /></label>
+                <label class="customer-basic"
+                  >Ansprechpartner / Abteilung<input data-path="buyer.contact" /></label
+                ><label class="customer-basic"
+                  >Zusatzinfo<input data-path="buyer.additional_info"
+                /></label>
+                <label class="customer-basic"
+                  >Straße und Hausnummer<input
+                    data-path="buyer.street"
+                    placeholder="Musterstraße 12"
+                /></label>
+                <label class="customer-basic"
+                  >PLZ<input data-buyer-address="postal_code" autocomplete="postal-code" /></label
+                ><label class="customer-basic"
+                  >Ort<input data-buyer-address="locality" autocomplete="address-level2"
+                /></label>
+                <div id="customer-extra-fields" class="fields two wide hidden">
+                  <label>Land<input data-path="buyer.country" placeholder="DE" /></label>
+                  <label
+                    >E-Mail<input
+                      type="email"
+                      data-path="buyer.email"
+                      placeholder="kontakt@beispiel.de" /></label
+                  ><label>USt-IdNr. (optional)<input data-path="buyer.vat_id" /></label>
+                </div>
+              </div>
+              <button class="button subtle" id="save-customer-button">Kunden speichern</button>
+            </div>
+            <div class="card">
+              <div class="card-heading">
+                <span class="step">03</span>
+                <div><h2>Positionen</h2></div>
+                <button
+                  type="button"
+                  class="add-item-button"
+                  id="add-item"
+                  aria-label="Position hinzufügen"
+                  title="Position hinzufügen"
+                >
+                  +
+                </button>
+              </div>
+              <div id="items"></div>
+            </div>
+            <div class="card payment-card">
+              <div class="card-heading">
+                <span class="step">04</span>
+                <div>
+                  <h2>Zahlungsdaten</h2>
+                  <small id="payment-summary">Bankverbindung für diese Rechnung</small>
+                </div>
+                <button
+                  type="button"
+                  id="toggle-payment-fields"
+                  class="text-button"
+                  aria-expanded="false"
+                  aria-controls="payment-fields"
+                >
+                  alle Felder
+                </button>
+              </div>
+              <div class="fields two payment-fields hidden" id="payment-fields">
+                <label class="wide"
+                  >Verwendungszweck<input
+                    data-path="payment_reference"
+                    placeholder="Automatisch aus Präfix und Rechnungsnummer" /></label
+                ><label class="wide"
+                  >Abschlusssatz<textarea data-path="payment_note" rows="2"></textarea></label
+                ><label>Kontoinhaber<input data-path="account_holder" /></label
+                ><label>Bank<input data-path="bank_name" /></label
+                ><label>IBAN<input data-path="iban" /></label
+                ><label>BIC<input data-path="bic" /></label>
+              </div>
+            </div>
+          </section>
+          <aside class="preview-panel">
+            <div class="paper-wrap"><article class="paper" id="preview"></article></div>
+          </aside>
+        </div>
+        <div class="invoices-page hidden" id="invoices-page">
+          <div class="card">
+            <div class="card-heading">
+              <span class="step">▦</span>
+              <div><h2>Rechnungen</h2></div>
+            </div>
+            <label
+              >Rechnungsnummer, Betreff oder Empfänger<input
+                id="search-input"
+                placeholder="Rechnungen durchsuchen"
+                autocomplete="off"
+            /></label>
+            <div id="invoice-list"></div>
+          </div>
+        </div>
 
-<div class="invoices-page hidden" id="customers-page"><div class="card"><div class="card-heading"><span class="step">◉</span><div><h2>Kunden</h2></div><button class="button" id="new-customer">＋ Kunde anlegen</button></div><p class="section-intro">Gemeinsames Adressbuch für alle Firmen.</p><div id="customer-list"></div></div></div>
-<div class="invoices-page hidden" id="templates-page"><div class="templates-layout"><section class="card template-browser"><div class="card-heading"><span class="step">▧</span><div><h2>Templates</h2></div></div><p class="section-intro">Wähle links eine Vorlage aus. Mit „Aktivieren“ verwendest du sie für neue Exporte der aktuellen Firma. HTML und CSS kannst du im Ordner <code>templates/</code> neben Billflux.exe bearbeiten.</p><div id="template-list"></div></section><section class="card template-preview-card"><div class="template-preview-heading"><div><small>VORSCHAU</small><h2 id="template-preview-title">Vorlage</h2></div><span>DIN A4 · HTML</span></div><div id="template-preview-surface"><p class="empty-state">Vorlage auswählen, um die Vorschau zu sehen.</p></div></section></div></div>
-<div class="settings-page hidden" id="settings-page">
-<section class="card"><div class="card-heading"><span class="step">⚙</span><h2>Allgemein</h2></div><p class="section-intro">Standardwerte für neue Rechnungen und Positionen dieser Firma.</p><div class="fields two">
-<label>Stundensatz netto (€ / h)<input data-setting="hourly_rate_cents" inputmode="decimal" placeholder="0,00"></label>
-<label>Zahlungsziel in Tagen<input type="number" min="1" max="365" data-setting="due_days" required></label>
-<label>Betreff-Präfix<input data-setting="subject_prefix" placeholder="Rechnung"></label><label>Anzahl Rechnungen im Menü<input type="number" min="1" max="20" data-setting="recent_count" required></label>
-</div></section>
-<section class="card"><div class="card-heading"><span class="step">#</span><h2>Rechnungs- und Steuernummern</h2></div><p class="section-intro">Nummern und Steuerangaben für Rechnungen dieser Firma.</p><div class="fields two">
-<label class="wide">Startnummer für neue Rechnungen<input data-setting="next_invoice_number" placeholder="YYYY-0001"><small>YYYY = Jahr, MM = Monat, z. B. YYYY-MM-0001. Höhere vergebene Nummern haben Vorrang.</small></label>
-<label>Rechnungsnummer-Präfix<input data-setting="invoice_prefix" placeholder="z. B. RE-"></label><label>Letzte Rechnungsnummer<input id="last-invoice-number" readonly></label>
-<label>Steuernummer<input data-path="seller.tax_number"></label><label>USt-IdNr.<input data-path="seller.vat_id"></label><label class="wide">W-IdNr.<input data-path="seller.economic_id"></label>
-</div></section>
-<section class="card"><div class="card-heading"><span class="step">€</span><h2>Bankverbindung</h2></div><p class="section-intro">Zahlungsdaten für neue Rechnungen dieser Firma.</p><div class="fields two">
-<label class="wide">Kontoinhaber<input data-setting="account_holder"></label><label>Bank<input data-setting="bank_name"></label><label>BIC<input data-setting="bic"></label><label class="wide">IBAN<input data-setting="iban"></label><label class="wide">Verwendungszweck-Präfix (optional)<input data-setting="payment_reference_prefix" placeholder="z. B. AM-"><small id="payment-reference-example"></small></label>
-</div></section>
-<section class="card"><div class="card-heading"><span class="step">✦</span><h2>Firmendaten</h2></div><p class="section-intro">Absender, Kontakt und Steuerangaben dieser Firma.</p><div class="fields two">
-<label>Firmenname<input data-path="seller.name" required></label><label>Alternativname<input data-path="seller.alternative_name"></label><label class="wide">Straße und Hausnummer<input data-path="seller.street"></label><label>PLZ<input data-company-address="postal_code" autocomplete="postal-code"></label><label>Ort<input data-company-address="locality" autocomplete="address-level2"></label><label>Land<input data-path="seller.country"></label><label>E-Mail<input type="email" data-path="seller.email"></label><label>Telefon<input data-path="seller.phone"></label><label>Webseite<input data-path="seller.website"></label>
-</div></section>
-</div>
-</main></div>
-<dialog id="create-company-dialog"><form id="create-company-form"><h2>Neue Firma anlegen</h2><label>Firmenname<input id="new-company-name" required autocomplete="organization" placeholder="Name der neuen Firma"></label><p id="create-company-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button" data-close-dialog="create-company-dialog">Abbrechen</button><button type="submit" class="button primary">Firma anlegen</button></div></form></dialog>
-<dialog id="customer-dialog"><form id="customer-form"><div class="card-heading"><h2 id="customer-dialog-title">Kunde bearbeiten</h2><button type="button" class="text-button" data-close-dialog="customer-dialog">Schließen ×</button></div><div class="fields two">
-<label class="wide">Firmenname / Name<input data-customer-field="name" required></label><label class="wide">Ansprechpartner / Abteilung (optional)<input data-customer-field="contact"></label>
-<label>Straße und Hausnummer<input data-customer-field="street"></label><label>PLZ<input data-customer-address="postal_code" autocomplete="postal-code"></label><label>Ort<input data-customer-address="locality" autocomplete="address-level2"></label><label>Land<input data-customer-field="country"></label><label>E-Mail<input type="email" data-customer-field="email"></label><label>Telefon<input data-customer-field="phone"></label><label>USt-IdNr.<input data-customer-field="vat_id"></label>
-</div><p id="customer-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button" data-close-dialog="customer-dialog">Abbrechen</button><button class="button primary" type="submit">Kunden speichern</button></div></form></dialog>
-<dialog id="delete-invoice-dialog"><form method="dialog"><h2>Rechnung löschen?</h2><p id="delete-invoice-description"></p><p>Bereits exportierte PDF-Dateien bleiben erhalten. Die Rechnungsnummer wird nicht erneut vergeben.</p><p id="delete-invoice-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button class="button" value="cancel">Abbrechen</button><button type="button" id="confirm-delete-invoice" class="button danger">Rechnung löschen</button></div></form></dialog>
-<script src="app.js"></script></body></html>
+        <div class="invoices-page hidden" id="customers-page">
+          <div class="card">
+            <div class="card-heading">
+              <span class="step">◉</span>
+              <div><h2>Kunden</h2></div>
+              <button class="button" id="new-customer">＋ Kunde anlegen</button>
+            </div>
+            <p class="section-intro">Gemeinsames Adressbuch für alle Firmen.</p>
+            <div id="customer-list"></div>
+          </div>
+        </div>
+        <div class="invoices-page hidden" id="templates-page">
+          <div class="templates-layout">
+            <section class="card template-browser">
+              <div class="card-heading">
+                <span class="step">▧</span>
+                <div><h2>Templates</h2></div>
+              </div>
+              <p class="section-intro">
+                Wähle links eine Vorlage aus. Mit „Aktivieren“ verwendest du sie für neue Exporte
+                der aktuellen Firma. HTML und CSS kannst du im Ordner <code>templates/</code> neben
+                Billflux.exe bearbeiten.
+              </p>
+              <div id="template-list"></div>
+            </section>
+            <section class="card template-preview-card">
+              <div class="template-preview-heading">
+                <div>
+                  <small>VORSCHAU</small>
+                  <h2 id="template-preview-title">Vorlage</h2>
+                </div>
+                <span>DIN A4 · HTML</span>
+              </div>
+              <div id="template-preview-surface">
+                <p class="empty-state">Vorlage auswählen, um die Vorschau zu sehen.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+        <div class="settings-page hidden" id="settings-page">
+          <section class="card">
+            <div class="card-heading">
+              <span class="step">⚙</span>
+              <h2>Allgemein</h2>
+            </div>
+            <p class="section-intro">
+              Standardwerte für neue Rechnungen und Positionen dieser Firma.
+            </p>
+            <div class="fields two">
+              <label
+                >Stundensatz netto (€ / h)<input
+                  data-setting="hourly_rate_cents"
+                  inputmode="decimal"
+                  placeholder="0,00"
+              /></label>
+              <label
+                >Zahlungsziel in Tagen<input
+                  type="number"
+                  min="1"
+                  max="365"
+                  data-setting="due_days"
+                  required
+              /></label>
+              <label
+                >Betreff-Präfix<input data-setting="subject_prefix" placeholder="Rechnung" /></label
+              ><label
+                >Anzahl Rechnungen im Menü<input
+                  type="number"
+                  min="1"
+                  max="20"
+                  data-setting="recent_count"
+                  required
+              /></label>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-heading">
+              <span class="step">#</span>
+              <h2>Rechnungs- und Steuernummern</h2>
+            </div>
+            <p class="section-intro">Nummern und Steuerangaben für Rechnungen dieser Firma.</p>
+            <div class="fields two">
+              <label class="wide"
+                >Startnummer für neue Rechnungen<input
+                  data-setting="next_invoice_number"
+                  placeholder="YYYY-0001"
+                /><small
+                  >YYYY = Jahr, MM = Monat, z. B. YYYY-MM-0001. Höhere vergebene Nummern haben
+                  Vorrang.</small
+                ></label
+              >
+              <label
+                >Rechnungsnummer-Präfix<input
+                  data-setting="invoice_prefix"
+                  placeholder="z. B. RE-" /></label
+              ><label>Letzte Rechnungsnummer<input id="last-invoice-number" readonly /></label>
+              <label>Steuernummer<input data-path="seller.tax_number" /></label
+              ><label>USt-IdNr.<input data-path="seller.vat_id" /></label
+              ><label class="wide">W-IdNr.<input data-path="seller.economic_id" /></label>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-heading">
+              <span class="step">€</span>
+              <h2>Bankverbindung</h2>
+            </div>
+            <p class="section-intro">Zahlungsdaten für neue Rechnungen dieser Firma.</p>
+            <div class="fields two">
+              <label class="wide">Kontoinhaber<input data-setting="account_holder" /></label
+              ><label>Bank<input data-setting="bank_name" /></label
+              ><label>BIC<input data-setting="bic" /></label
+              ><label class="wide">IBAN<input data-setting="iban" /></label
+              ><label class="wide"
+                >Verwendungszweck-Präfix (optional)<input
+                  data-setting="payment_reference_prefix"
+                  placeholder="z. B. AM-" /><small id="payment-reference-example"></small
+              ></label>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-heading">
+              <span class="step">✦</span>
+              <h2>Firmendaten</h2>
+            </div>
+            <p class="section-intro">Absender, Kontakt und Steuerangaben dieser Firma.</p>
+            <div class="fields two">
+              <label>Firmenname<input data-path="seller.name" required /></label
+              ><label>Alternativname<input data-path="seller.alternative_name" /></label
+              ><label class="wide">Straße und Hausnummer<input data-path="seller.street" /></label
+              ><label
+                >PLZ<input data-company-address="postal_code" autocomplete="postal-code" /></label
+              ><label
+                >Ort<input data-company-address="locality" autocomplete="address-level2" /></label
+              ><label>Land<input data-path="seller.country" /></label
+              ><label>E-Mail<input type="email" data-path="seller.email" /></label
+              ><label>Telefon<input data-path="seller.phone" /></label
+              ><label>Webseite<input data-path="seller.website" /></label>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <dialog id="create-company-dialog">
+      <form id="create-company-form">
+        <h2>Neue Firma anlegen</h2>
+        <label
+          >Firmenname<input
+            id="new-company-name"
+            required
+            autocomplete="organization"
+            placeholder="Name der neuen Firma"
+        /></label>
+        <p id="create-company-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button" data-close-dialog="create-company-dialog">
+            Abbrechen</button
+          ><button type="submit" class="button primary">Firma anlegen</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="customer-dialog">
+      <form id="customer-form">
+        <div class="card-heading">
+          <h2 id="customer-dialog-title">Kunde bearbeiten</h2>
+          <button type="button" class="text-button" data-close-dialog="customer-dialog">
+            Schließen ×
+          </button>
+        </div>
+        <div class="fields two">
+          <label class="wide">Firmenname / Name<input data-customer-field="name" required /></label
+          ><label>Ansprechpartner / Abteilung<input data-customer-field="contact" /></label
+          ><label>Zusatzinfo<input data-customer-field="additional_info" /></label>
+          <label>Straße und Hausnummer<input data-customer-field="street" /></label
+          ><label>PLZ<input data-customer-address="postal_code" autocomplete="postal-code" /></label
+          ><label>Ort<input data-customer-address="locality" autocomplete="address-level2" /></label
+          ><label>Land<input data-customer-field="country" /></label
+          ><label>E-Mail<input type="email" data-customer-field="email" /></label
+          ><label>Telefon<input data-customer-field="phone" /></label
+          ><label>USt-IdNr.<input data-customer-field="vat_id" /></label>
+        </div>
+        <p id="customer-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button" data-close-dialog="customer-dialog">Abbrechen</button
+          ><button class="button primary" type="submit">Kunden speichern</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="delete-invoice-dialog">
+      <form method="dialog">
+        <h2>Rechnung löschen?</h2>
+        <p id="delete-invoice-description"></p>
+        <p>
+          Bereits exportierte PDF-Dateien bleiben erhalten. Die Rechnungsnummer wird nicht erneut
+          vergeben.
+        </p>
+        <p id="delete-invoice-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button class="button" value="cancel">Abbrechen</button
+          ><button type="button" id="confirm-delete-invoice" class="button danger">
+            Rechnung löschen
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

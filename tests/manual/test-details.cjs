@@ -23,9 +23,9 @@ const {pathToFileURL}=require('node:url');
   await field.scrollIntoViewIfNeeded();
   fs.mkdirSync('tmp/details-check',{recursive:true});
   await field.locator('..').screenshot({path:'tmp/details-check/field.png'});
-  const template=fs.readFileSync('templates/standard/invoice.html','utf8');
+  const template=fs.readFileSync('tests/fixtures/standard/invoice.html','utf8');
   const pagination=fs.readFileSync('src/pagination.js','utf8');
-  const css=fs.readFileSync('templates/standard/style.css','utf8').replaceAll('url("fonts/', 'url("'+pathToFileURL(path.resolve('fonts')).href+'/');
+  const css=fs.readFileSync('tests/fixtures/standard/style.css','utf8').replaceAll('url("fonts/', 'url("'+pathToFileURL(path.resolve('assets/fonts')).href+'/');
   await page.goto('about:blank');
   page.on('pageerror',error=>console.error(error));
   for(const count of [3,120]){

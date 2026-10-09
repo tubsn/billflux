@@ -12,7 +12,8 @@ fn escape(value: &str) -> String {
 fn postal(party: &Party) -> String {
     let (postcode, city) = party.city.split_once(' ').unwrap_or(("", &party.city));
     let contact=if party.contact.is_empty(){String::new()}else{format!("<ram:LineTwo>{}</ram:LineTwo>",escape(&party.contact))};
-    format!("<ram:PostalTradeAddress><ram:PostcodeCode>{}</ram:PostcodeCode><ram:LineOne>{}</ram:LineOne>{contact}<ram:CityName>{}</ram:CityName><ram:CountryID>{}</ram:CountryID></ram:PostalTradeAddress>",
+    let additional=if party.additional_info.is_empty(){String::new()}else{format!("<ram:LineThree>{}</ram:LineThree>",escape(&party.additional_info))};
+    format!("<ram:PostalTradeAddress><ram:PostcodeCode>{}</ram:PostcodeCode><ram:LineOne>{}</ram:LineOne>{contact}{additional}<ram:CityName>{}</ram:CityName><ram:CountryID>{}</ram:CountryID></ram:PostalTradeAddress>",
         escape(postcode), escape(&party.street), escape(city), escape(&party.country))
 }
 

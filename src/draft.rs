@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Party {
-    pub name: String, pub contact: String, pub street: String, pub city: String, pub country: String,
+    pub name: String, pub contact: String, pub additional_info:String, pub street: String, pub city: String, pub country: String,
     pub email: String, pub phone: String, pub website: String, pub tax_number: String,
     pub vat_id: String, pub economic_id: String, pub alternative_name: String,
 }
 impl Default for Party {
-    fn default() -> Self { Self { name: String::new(), contact:String::new(), street: String::new(), city: String::new(), country: "DE".into(), email: String::new(), phone: String::new(), website: String::new(), tax_number: String::new(), vat_id: String::new(), economic_id:String::new(), alternative_name:String::new() } }
+    fn default() -> Self { Self { name: String::new(), contact:String::new(), additional_info:String::new(), street: String::new(), city: String::new(), country: "DE".into(), email: String::new(), phone: String::new(), website: String::new(), tax_number: String::new(), vat_id: String::new(), economic_id:String::new(), alternative_name:String::new() } }
 }
 
 #[derive(Clone, Serialize, Deserialize)]

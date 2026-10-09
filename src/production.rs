@@ -22,7 +22,7 @@ fn base_dir() -> Result<PathBuf, String> {
 }
 
 fn party(value: draft::Party) -> model::Party {
-    model::Party { contact:value.contact, name:value.name, alternative_name:value.alternative_name, street:value.street, city:value.city, country:value.country, email:value.email, vat_id:value.vat_id, economic_id:value.economic_id, phone:value.phone, website:value.website, tax_number:value.tax_number }
+    model::Party { contact:value.contact, additional_info:value.additional_info, name:value.name, alternative_name:value.alternative_name, street:value.street, city:value.city, country:value.country, email:value.email, vat_id:value.vat_id, economic_id:value.economic_id, phone:value.phone, website:value.website, tax_number:value.tax_number }
 }
 
 fn invoice(value: draft::Workspace) -> model::Invoice {
@@ -65,7 +65,7 @@ fn validate(data: &draft::Workspace) -> Result<(), String> {
     Ok(())
 }
 
-fn copy_assets(base: &Path, template_dir: &Path, preview: &Path) -> Result<(), String> {
+fn copy_assets(template_dir: &Path, preview: &Path) -> Result<(), String> {
     fs::copy(template_dir.join("style.css"), preview.join("style.css")).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(template_dir).map_err(|e| e.to_string())? {
         let entry=entry.map_err(|e| e.to_string())?;
@@ -82,8 +82,18 @@ fn copy_assets(base: &Path, template_dir: &Path, preview: &Path) -> Result<(), S
         fs::create_dir_all(&destination).map_err(|e| e.to_string())?;
         for name in names {
             let bundled=template_dir.join("fonts").join(family).join(name);
-            let source=if bundled.is_file(){bundled}else{base.join("fonts").join(family).join(name)};
-            fs::copy(source,destination.join(name)).map_err(|e| e.to_string())?;
+            if bundled.is_file() {
+                fs::copy(bundled,destination.join(name)).map_err(|e| e.to_string())?;
+            } else {
+                let font=match (family,name) {
+                    ("Fira_Sans","FiraSans-Regular.ttf")=>include_bytes!("../assets/fonts/Fira_Sans/FiraSans-Regular.ttf").as_slice(),
+                    ("Fira_Sans","FiraSans-Bold.ttf")=>include_bytes!("../assets/fonts/Fira_Sans/FiraSans-Bold.ttf").as_slice(),
+                    ("Fira_Sans_Condensed","FiraSansCondensed-Regular.ttf")=>include_bytes!("../assets/fonts/Fira_Sans_Condensed/FiraSansCondensed-Regular.ttf").as_slice(),
+                    ("Fira_Sans_Condensed","FiraSansCondensed-Bold.ttf")=>include_bytes!("../assets/fonts/Fira_Sans_Condensed/FiraSansCondensed-Bold.ttf").as_slice(),
+                    _=>unreachable!(),
+                };
+                fs::write(destination.join(name),font).map_err(|e| e.to_string())?;
+            }
         }
     }
     Ok(())
@@ -131,7 +141,7 @@ pub fn create_to(mut data: draft::Workspace, destination:Option<PathBuf>) -> Res
     let pdf_path=preview.join("current.pdf");
     fs::write(&html_path,view::html(&finalized,&template)).map_err(|e| e.to_string())?;
     fs::write(&xml_path,xml::render(&finalized)).map_err(|e| e.to_string())?;
-    copy_assets(&base,&template_dir,&preview)?;
+    copy_assets(&template_dir,&preview)?;
     let bundled=base.join("bin/chrome-headless-shell/chrome-headless-shell.exe");
     let local=base.join(".tools/chrome-headless-shell/chrome-headless-shell-win64/chrome-headless-shell.exe");
     let chrome=if bundled.is_file(){bundled}else{local};
@@ -172,6 +182,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preview_fonts_work_without_external_asset_folder() {
+        let root=std::env::temp_dir().join(format!("billflux-font-test-{}",std::process::id()));
+        let template=root.join("template");
+        let preview=root.join("preview");
+        fs::create_dir_all(&template).unwrap();
+        fs::create_dir_all(&preview).unwrap();
+        fs::write(template.join("style.css"),"").unwrap();
+        copy_assets(&template,&preview).unwrap();
+        for (family,name) in [
+            ("Fira_Sans","FiraSans-Regular.ttf"),
+            ("Fira_Sans","FiraSans-Bold.ttf"),
+            ("Fira_Sans_Condensed","FiraSansCondensed-Regular.ttf"),
+            ("Fira_Sans_Condensed","FiraSansCondensed-Bold.ttf"),
+        ] {
+            assert!(fs::metadata(preview.join("fonts").join(family).join(name)).unwrap().len()>0);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn missing_fields_are_rejected_before_export_setup() {
         let data=draft::Workspace::default();
         assert_eq!(validate_export(&data).unwrap_err(),"Rechnungsdatum fehlt");
@@ -198,8 +228,8 @@ mod tests {
         data.date=sample.date; data.service_date=sample.service_date; data.due_date=sample.due_date;
         data.subject=sample.subject; data.account_holder=sample.account_holder;
         data.iban=sample.iban; data.bic=sample.bic; data.bank_name=sample.bank_name;
-        data.seller=draft::Party { contact:sample.seller.contact, name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name };
-        data.buyer=draft::Party { contact:sample.buyer.contact, name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name };
+        data.seller=draft::Party { contact:sample.seller.contact,additional_info:sample.seller.additional_info, name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name };
+        data.buyer=draft::Party { contact:sample.buyer.contact,additional_info:sample.buyer.additional_info, name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name };
         data.items=sample.items.into_iter().map(|item| draft::Item { description:item.description,detail:item.detail,quantity:item.quantity,unit:"Stunden".into(),unit_price_cents:item.unit_price_cents,vat_percent:item.vat_percent }).collect();
         data.items[0].quantity=1.5;
         data.due_date.clear();data.payment_reference_prefix="AM".into();data.payment_reference="Auftrag 42".into();data.buyer.contact="Abteilung Einkauf".into();
@@ -225,8 +255,8 @@ mod tests {
         data.date=sample.date;
         data.subject="Umfangreiche Leistungen".into();
         data.account_holder=sample.account_holder;data.iban=sample.iban;data.bic=sample.bic;
-        data.seller=draft::Party{contact:sample.seller.contact,name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name};
-        data.buyer=draft::Party{contact:sample.buyer.contact,name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name};
+        data.seller=draft::Party{contact:sample.seller.contact,additional_info:sample.seller.additional_info,name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name};
+        data.buyer=draft::Party{contact:sample.buyer.contact,additional_info:sample.buyer.additional_info,name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name};
         data.items=(0..15).map(|n|draft::Item{description:format!("Leistungsposition {} mit einer langen Beschreibung und mehreren Details",n+1),detail:"Ausarbeitung, Abstimmung und Dokumentation der vereinbarten Leistungen. ".repeat(7),quantity:1.0,unit:"Stunden".into(),unit_price_cents:8500,vat_percent:19}).collect();
         let result=create(data).unwrap();
         let info=Command::new("pdfinfo").arg(&result.pdf_path).output().unwrap();
@@ -261,8 +291,8 @@ mod tests {
         data.number=format!("TEST-OVERSIZE-{}",std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
         data.date=sample.date;data.subject=sample.subject;
         data.account_holder=sample.account_holder;data.iban=sample.iban;data.bic=sample.bic;
-        data.seller=draft::Party{contact:sample.seller.contact,name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name};
-        data.buyer=draft::Party{contact:sample.buyer.contact,name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name};
+        data.seller=draft::Party{contact:sample.seller.contact,additional_info:sample.seller.additional_info,name:sample.seller.name,street:sample.seller.street,city:sample.seller.city,country:sample.seller.country,email:sample.seller.email,phone:sample.seller.phone,website:sample.seller.website,tax_number:sample.seller.tax_number,vat_id:sample.seller.vat_id,economic_id:sample.seller.economic_id,alternative_name:sample.seller.alternative_name};
+        data.buyer=draft::Party{contact:sample.buyer.contact,additional_info:sample.buyer.additional_info,name:sample.buyer.name,street:sample.buyer.street,city:sample.buyer.city,country:sample.buyer.country,email:sample.buyer.email,phone:sample.buyer.phone,website:sample.buyer.website,tax_number:sample.buyer.tax_number,vat_id:sample.buyer.vat_id,economic_id:sample.buyer.economic_id,alternative_name:sample.buyer.alternative_name};
         data.items=vec![draft::Item{description:"Lange Einzelposition".into(),detail:format!("{}ENDE DER POSITION", "Ausarbeitung und Dokumentation der Leistungen. ".repeat(100)),quantity:1.0,unit:"Stunden".into(),unit_price_cents:8500,vat_percent:19}];
         let result=create(data).unwrap();
         let info=Command::new("pdfinfo").arg(&result.pdf_path).output().unwrap();
