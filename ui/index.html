@@ -52,8 +52,8 @@
             <label class="stats-compare-label"><input id="stats-compare" type="checkbox" /> Vorjahr vergleichen</label>
           </div>
           <div class="header-actions">
-            <button class="button hidden" id="create-company-button">＋ Neue Firma anlegen</button
-            ><span id="save-status" aria-live="polite"></span
+            <span id="save-status" aria-live="polite"></span
+            ><button class="button primary hidden" id="create-company-button">Neue Firma anlegen</button
             ><button class="button primary" id="export-button">PDF Exportieren</button>
           </div>
         </header>
@@ -84,7 +84,7 @@
                   <label
                     >Betreff-Präfix<input
                       data-path="subject_prefix"
-                      placeholder="Rechnung" /></label
+                      placeholder="Optional" /></label
                   ><label>Fälligkeitsdatum<input type="date" data-path="due_date" /></label
                   ><label>Leistungsdatum<input type="date" data-path="service_date" /></label
                   ><label class="checkbox-label"
@@ -196,6 +196,10 @@
           </aside>
         </div>
         <div class="invoices-page hidden" id="invoices-page">
+          <div class="setup-notice hidden" id="setup-notice" role="alert">
+            Bitte zunächst eine Firma anlegen.
+            <button type="button" id="setup-settings-link">Einstellungen öffnen</button>
+          </div>
           <div class="card">
             <div class="card-heading">
               <span class="step">▦</span>
@@ -279,7 +283,7 @@
                   required
               /></label>
               <label
-                >Betreff-Präfix<input data-setting="subject_prefix" placeholder="Rechnung" /></label
+                >Betreff-Präfix<input data-setting="subject_prefix" placeholder="Optional" /></label
               ><label
                 >Anzahl Rechnungen im Menü<input
                   type="number"
@@ -288,6 +292,40 @@
                   data-setting="recent_count"
                   required
               /></label>
+              <label class="checkbox-label wide"
+                ><input type="checkbox" data-setting="number_in_subject" />Rechnungsnummer in Betreff hinzufügen</label
+              >
+              <fieldset class="setting-checkbox-group wide">
+                <legend>Leistungszeitraum</legend>
+                <div class="fields two">
+                  <label class="checkbox-label"
+                    ><input type="checkbox" data-setting="service_date_always" />Immer an</label
+                  >
+                  <label class="checkbox-label"
+                    ><input type="checkbox" data-setting="service_month_always" />Immer als Monat</label
+                  >
+                </div>
+              </fieldset>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-heading">
+              <span class="step">✦</span>
+              <h2>Firmendaten</h2>
+            </div>
+            <p class="section-intro">Absender, Kontakt und Steuerangaben dieser Firma.</p>
+            <div class="fields two">
+              <label>Firmenname<input data-path="seller.name" required /></label
+              ><label>Alternativname<input data-path="seller.alternative_name" /></label
+              ><label class="wide">Straße und Hausnummer<input data-path="seller.street" /></label
+              ><label
+                >PLZ<input data-company-address="postal_code" autocomplete="postal-code" /></label
+              ><label
+                >Ort<input data-company-address="locality" autocomplete="address-level2" /></label
+              ><label>Land<input data-path="seller.country" /></label
+              ><label>E-Mail<input type="email" data-path="seller.email" /></label
+              ><label>Telefon<input data-path="seller.phone" /></label
+              ><label>Webseite<input data-path="seller.website" /></label>
             </div>
           </section>
           <section class="card">
@@ -332,26 +370,6 @@
                   data-setting="payment_reference_prefix"
                   placeholder="z. B. AM-" /><small id="payment-reference-example"></small
               ></label>
-            </div>
-          </section>
-          <section class="card">
-            <div class="card-heading">
-              <span class="step">✦</span>
-              <h2>Firmendaten</h2>
-            </div>
-            <p class="section-intro">Absender, Kontakt und Steuerangaben dieser Firma.</p>
-            <div class="fields two">
-              <label>Firmenname<input data-path="seller.name" required /></label
-              ><label>Alternativname<input data-path="seller.alternative_name" /></label
-              ><label class="wide">Straße und Hausnummer<input data-path="seller.street" /></label
-              ><label
-                >PLZ<input data-company-address="postal_code" autocomplete="postal-code" /></label
-              ><label
-                >Ort<input data-company-address="locality" autocomplete="address-level2" /></label
-              ><label>Land<input data-path="seller.country" /></label
-              ><label>E-Mail<input type="email" data-path="seller.email" /></label
-              ><label>Telefon<input data-path="seller.phone" /></label
-              ><label>Webseite<input data-path="seller.website" /></label>
             </div>
           </section>
         </div>

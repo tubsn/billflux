@@ -7,8 +7,8 @@ use std::path::PathBuf;
 pub struct Company { pub id: i64, pub party: Party, pub template: String }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Settings { pub invoice_prefix:String, pub subject_prefix:String, pub payment_reference_prefix:String, pub hourly_rate_cents:i64, pub next_invoice_number:String, pub account_holder:String, pub iban:String, pub bic:String, pub bank_name:String, pub due_days:u32, pub recent_count:u32 }
-impl Default for Settings { fn default()->Self{Self{invoice_prefix:String::new(),subject_prefix:"Rechnung".into(),payment_reference_prefix:String::new(),hourly_rate_cents:0,next_invoice_number:String::new(),account_holder:String::new(),iban:String::new(),bic:String::new(),bank_name:String::new(),due_days:14,recent_count:5}} }
+pub struct Settings { pub invoice_prefix:String, pub subject_prefix:String, pub payment_reference_prefix:String, pub hourly_rate_cents:i64, pub next_invoice_number:String, pub account_holder:String, pub iban:String, pub bic:String, pub bank_name:String, pub due_days:u32, pub recent_count:u32, pub service_date_always:bool, pub service_month_always:bool, pub number_in_subject:bool }
+impl Default for Settings { fn default()->Self{Self{invoice_prefix:String::new(),subject_prefix:String::new(),payment_reference_prefix:String::new(),hourly_rate_cents:0,next_invoice_number:String::new(),account_holder:String::new(),iban:String::new(),bic:String::new(),bank_name:String::new(),due_days:14,recent_count:5,service_date_always:false,service_month_always:false,number_in_subject:true}} }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Customer { pub id:i64, pub company_id:i64, pub party:Party }
 #[derive(Serialize)]
@@ -76,13 +76,12 @@ fn db() -> Result<Connection,String> {
     let has_deleted=conn.prepare("PRAGMA table_info(invoices)").map_err(|e|e.to_string())?.query_map([],|r|r.get::<_,String>(1)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?.iter().any(|column|column=="deleted_at");
     if !has_deleted{conn.execute("ALTER TABLE invoices ADD COLUMN deleted_at TEXT",[]).map_err(|e|e.to_string())?;}
     let count:i64=conn.query_row("SELECT COUNT(*) FROM companies",[],|r|r.get(0)).map_err(|e|e.to_string())?;
-    if count==0 {
+    let old:Option<String>=if count==0 {conn.query_row("SELECT data FROM workspace WHERE id=1",[],|r|r.get(0)).optional().map_err(|e|e.to_string())?}else{None};
+    if let Some(old)=old {
         conn.execute_batch("BEGIN IMMEDIATE").map_err(|e|e.to_string())?;
-        let old:Option<String>=conn.query_row("SELECT data FROM workspace WHERE id=1",[],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
-        let mut draft:Workspace=old.as_ref().map(|s|serde_json::from_str(s)).transpose().map_err(|e|e.to_string())?.unwrap_or_default();
+        let mut draft:Workspace=serde_json::from_str(&old).map_err(|e|e.to_string())?;
         let names=templates()?;
-        let preferred=if old.is_some(){"standard"}else{"example"};
-        let template=available_template(preferred,&names)?;
+        let template=available_template("standard",&names)?;
         conn.execute("INSERT INTO companies(data,template) VALUES(?1,?2)",params![serde_json::to_string(&draft.seller).map_err(|e|e.to_string())?,template]).map_err(|e|e.to_string())?;
         draft.company_id=conn.last_insert_rowid();
         let pdf=base()?.join("logs").join(format!("{}.pdf",draft.number));
@@ -91,6 +90,11 @@ fn db() -> Result<Connection,String> {
         conn.execute("INSERT INTO app_state(id,active_id) VALUES(1,?1)",params![conn.last_insert_rowid()]).map_err(|e|e.to_string())?;
         conn.execute("INSERT INTO selected_company(id,company_id) VALUES(1,?1)",params![draft.company_id]).map_err(|e|e.to_string())?;
         conn.execute_batch("COMMIT").map_err(|e|e.to_string())?;
+    } else if count==0 {
+        let party=Party{name:"Musterfirma".into(),street:"Musterstraße".into(),..Party::default()};
+        let template=available_template("example",&templates()?)?;
+        conn.execute("INSERT INTO companies(data,template) VALUES(?1,?2)",params![serde_json::to_string(&party).map_err(|e|e.to_string())?,template]).map_err(|e|e.to_string())?;
+        conn.execute("INSERT INTO selected_company(id,company_id) VALUES(1,?1)",params![conn.last_insert_rowid()]).map_err(|e|e.to_string())?;
     }
     conn.execute("INSERT OR IGNORE INTO selected_company(id,company_id) SELECT 1,company_id FROM invoices ORDER BY id DESC LIMIT 1",[]).map_err(|e|e.to_string())?;
     let root=base()?;
@@ -176,14 +180,16 @@ pub fn load_app() -> Result<AppData,String> {
     let customers=stmt.query_map([],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?
         .map(|row|{let(id,company_id,json)=row.map_err(|e|e.to_string())?;Ok(Customer{id,company_id,party:serde_json::from_str(&json).map_err(|e|e.to_string())?})}).collect::<Result<Vec<_>,String>>()?;
     let active:i64=conn.query_row("SELECT active_id FROM app_state WHERE id=1",[],|r|r.get(0)).unwrap_or(0);
-    let active_company_id:i64=conn.query_row("SELECT company_id FROM selected_company WHERE id=1",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    let active_company_id:i64=conn.query_row("SELECT company_id FROM selected_company WHERE id=1",[],|r|r.get(0)).unwrap_or(0);
     let current=records.iter().find(|r|r.0==active).or_else(||records.iter().find(|r|r.1==active_company_id));
     let (workspace,status)=if let Some(current)=current {
         let mut workspace:Workspace=serde_json::from_str(&current.4).map_err(|e|e.to_string())?;
         workspace.invoice_id=current.0;workspace.company_id=current.1;
         (workspace,current.3.clone())
-    }else{(new_invoice(active_company_id,&chrono::Local::now().format("%Y-%m-%d").to_string())?,"draft".into())};
-    Ok(AppData{workspace,companies,invoices,customers,templates:names,settings:settings(active_company_id)?,active_company_id,status})
+    }else if active_company_id!=0 {(new_invoice(active_company_id,&chrono::Local::now().format("%Y-%m-%d").to_string())?,"draft".into())}
+    else {(Workspace::default(),"empty".into())};
+    let preferences=if active_company_id!=0 {settings(active_company_id)?}else{Settings::default()};
+    Ok(AppData{workspace,companies,invoices,customers,templates:names,settings:preferences,active_company_id,status})
 }
 pub fn load() -> Result<Workspace,String>{Ok(load_app()?.workspace)}
 pub fn save(data:&Workspace) -> Result<Workspace,String> {
@@ -208,15 +214,19 @@ pub fn save(data:&Workspace) -> Result<Workspace,String> {
 pub fn create_company(name:String) -> Result<Company,String> {
     let name=name.trim();if name.is_empty(){return Err("Firmenname fehlt".into());}
     let party=Party{name:name.into(),..Party::default()};let conn=db()?;
-    conn.execute("INSERT INTO companies(data) VALUES(?1)",params![serde_json::to_string(&party).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
-    let id=conn.last_insert_rowid();
-    let template=format!("firma-{id}");
+    let first:bool=conn.query_row("SELECT NOT EXISTS(SELECT 1 FROM companies)",[],|r|r.get(0)).map_err(|e|e.to_string())?;
     let names=templates()?;
-    let source_name=if names.iter().any(|name|name=="standard"){"standard"}else{names.first().ok_or("Keine Rechnungsvorlage gefunden")?};
-    let source=base()?.join("templates").join(source_name);
-    let destination=base()?.join("templates").join(&template);
-    copy_template(&source,&destination)?;
-    conn.execute("UPDATE companies SET template=?1 WHERE id=?2",params![template,id]).map_err(|e|e.to_string())?;
+    let initial=if first {available_template("example",&names)?}else{available_template("standard",&names)?};
+    conn.execute("INSERT INTO companies(data,template) VALUES(?1,?2)",params![serde_json::to_string(&party).map_err(|e|e.to_string())?,initial]).map_err(|e|e.to_string())?;
+    let id=conn.last_insert_rowid();
+    let template=if first {initial}else{
+        let template=format!("firma-{id}");
+        let source=base()?.join("templates").join(&initial);
+        let destination=base()?.join("templates").join(&template);
+        copy_template(&source,&destination)?;
+        conn.execute("UPDATE companies SET template=?1 WHERE id=?2",params![template,id]).map_err(|e|e.to_string())?;
+        template
+    };
     Ok(Company{id,party,template})
 }
 fn copy_template(source:&std::path::Path,destination:&std::path::Path) -> Result<(),String> {
@@ -253,7 +263,10 @@ pub fn new_invoice(company_id:i64,date:&str) -> Result<Workspace,String> {
     }
     let number=next_number(&start,&used)?;
     select_company(company_id)?;
-    Ok(Workspace{invoice_id:0,company_id,seller:firm.party,number,date:date.into(),subject_prefix:preferences.subject_prefix,payment_reference_prefix:preferences.payment_reference_prefix,
+    let service_date=if preferences.service_date_always {
+        (chrono::NaiveDate::parse_from_str(date,"%Y-%m-%d").map_err(|_|"Ungültiges Rechnungsdatum")?+chrono::Duration::days(14)).format("%Y-%m-%d").to_string()
+    }else{String::new()};
+    Ok(Workspace{invoice_id:0,company_id,seller:firm.party,number,date:date.into(),service_date,service_month:preferences.service_month_always,number_in_subject:preferences.number_in_subject,subject_prefix:preferences.subject_prefix,payment_reference_prefix:preferences.payment_reference_prefix,
         items:vec![crate::draft::Item{unit_price_cents:preferences.hourly_rate_cents,..crate::draft::Item::default()}],
         account_holder:preferences.account_holder,iban:preferences.iban,bic:preferences.bic,bank_name:preferences.bank_name,..Workspace::default()})
 }
@@ -382,7 +395,12 @@ mod tests {
         assert!(save_company_settings(second.id,Party{name:"Nicht speichern".into(),..Party::default()},invalid).is_err());
         assert_eq!(company(second.id).unwrap().party.name,"Zweite Firma aktualisiert");
         assert_eq!(settings(second.id).unwrap().hourly_rate_cents,9550);
+        assert_eq!(new_invoice(app.active_company_id,"2026-10-07").unwrap().service_date,"");
+        save_settings(second.id,Settings{service_date_always:true,service_month_always:true,number_in_subject:false,..settings(second.id).unwrap()}).unwrap();
         let mut next=new_invoice(second.id,"2026-10-07").unwrap();
+        assert_eq!(next.service_date,"2026-10-21");
+        assert!(next.service_month);
+        assert!(!next.number_in_subject);
         assert_eq!(next.items[0].unit_price_cents,9550);
         assert_eq!(next.number,"RE-2026-0042");
         next.buyer=customer.party.clone();next.customer_id=customer.id;next.payment_reference="Individueller Auftrag".into();
@@ -427,6 +445,30 @@ mod tests {
         let empty=load_app().unwrap();assert!(empty.invoices.is_empty());assert_eq!(empty.workspace.invoice_id,0);
         std::env::remove_var("BILLFLUX_TEST_BASE");
         std::fs::remove_dir_all(root).unwrap();
+        let fresh_root=std::env::temp_dir().join(format!("billflux-fresh-test-{}",std::process::id()));
+        std::fs::create_dir_all(fresh_root.join("templates/standard")).unwrap();
+        std::fs::create_dir_all(fresh_root.join("templates/example")).unwrap();
+        std::fs::write(fresh_root.join("templates/standard/invoice.html"),"").unwrap();
+        std::fs::write(fresh_root.join("templates/standard/style.css"),"").unwrap();
+        std::fs::write(fresh_root.join("templates/example/invoice.html"),"").unwrap();
+        std::fs::write(fresh_root.join("templates/example/style.css"),"").unwrap();
+        std::env::set_var("BILLFLUX_TEST_BASE",&fresh_root);
+        let fresh=load_app().unwrap();
+        assert_eq!(fresh.companies.len(),1);
+        assert_eq!(fresh.companies[0].party.name,"Musterfirma");
+        assert_eq!(fresh.companies[0].party.street,"Musterstraße");
+        assert_eq!(fresh.companies[0].template,"example");
+        assert!(!fresh_root.join("templates").join(format!("firma-{}",fresh.companies[0].id)).exists());
+        assert!(fresh.invoices.is_empty());
+        assert_eq!(fresh.active_company_id,fresh.companies[0].id);
+        assert_eq!(fresh.status,"draft");
+        assert!(fresh.settings.subject_prefix.is_empty());
+        assert!(fresh.settings.number_in_subject);
+        let without_invoice=load_app().unwrap();
+        assert!(without_invoice.invoices.is_empty());
+        assert!(without_invoice.workspace.subject_prefix.is_empty());
+        std::env::remove_var("BILLFLUX_TEST_BASE");
+        std::fs::remove_dir_all(fresh_root).unwrap();
     }
 }
 

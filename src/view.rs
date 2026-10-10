@@ -57,8 +57,12 @@ pub fn html(invoice: &FinalInvoice<'_>, template: &str) -> String {
     let due_german=german_date(&invoice.invoice.due_date);
     let service_german=service_period(&invoice.invoice.service_date,invoice.invoice.service_month);
     let service_meta=if invoice.invoice.service_date.is_empty(){String::new()}else{format!("<br>Leistungszeitraum: {}",escape(&service_german))};
-    let heading_start=[invoice.invoice.subject_prefix.trim(),invoice.invoice.number.trim()].into_iter().filter(|part|!part.is_empty()).collect::<Vec<_>>().join(" ");
-    let invoice_heading=if invoice.invoice.subject.trim().is_empty(){heading_start}else{format!("{} - {}",heading_start,invoice.invoice.subject.trim())};
+    let heading_start=[invoice.invoice.subject_prefix.trim(),if invoice.invoice.number_in_subject {invoice.invoice.number.trim()}else{""}].into_iter().filter(|part|!part.is_empty()).collect::<Vec<_>>().join(" ");
+    let invoice_heading=match (heading_start.is_empty(),invoice.invoice.subject.trim().is_empty()) {
+        (true,_)=>invoice.invoice.subject.trim().to_string(),
+        (_,true)=>heading_start,
+        _=>format!("{} - {}",heading_start,invoice.invoice.subject.trim()),
+    };
     let country_prefix=match invoice.invoice.seller.country.trim().to_uppercase().as_str(){"DE"|"DEU"|"DEUTSCHLAND"=>"D".to_string(),country=>country.to_string()};
     let seller_postal_city=if country_prefix.is_empty()||invoice.invoice.seller.city.trim().is_empty(){invoice.invoice.seller.city.clone()}else{format!("{}-{}",country_prefix,invoice.invoice.seller.city.trim())};
     let html=template
@@ -183,6 +187,10 @@ mod tests {
         assert!(html.contains("<small><i></i>artMessengers.de</small>"));
         assert!(html.contains("Cottbus, den 07.10.2026"));
         assert!(html.contains("Honorar BF-2026-0001 - Ai Buddy Krams"));
+        invoice.number_in_subject=false;
+        let without_number=super::html(&invoice.finalize().unwrap(),include_str!("../templates/example/invoice.html"));
+        assert!(without_number.contains("<h1>Honorar - Ai Buddy Krams</h1>"));
+        assert!(without_number.contains("<strong>BF-2026-0001</strong>"));
         assert!(html.contains("D-03042 Cottbus"));
         assert!(html.contains("<footer><div>Artmessengers<br>"));
         assert!(html.contains("<div>Deutsche Kreditbank AG<br>IBAN: "));

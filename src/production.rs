@@ -31,7 +31,7 @@ fn invoice(value: draft::Workspace) -> model::Invoice {
         payment_note:value.payment_note.clone(),
         payment_reference:if value.payment_reference.trim().is_empty(){format!("{}{}",value.payment_reference_prefix,value.number)}else{value.payment_reference.clone()},
         number:value.number, date:value.date, service_date:value.service_date, service_month:value.service_month, due_date:value.due_date,
-        subject:value.subject, subject_prefix:value.subject_prefix, account_holder:value.account_holder, iban:value.iban, bic:value.bic,
+        subject:value.subject, subject_prefix:value.subject_prefix, number_in_subject:value.number_in_subject, account_holder:value.account_holder, iban:value.iban, bic:value.bic,
         bank_name:value.bank_name, seller:party(value.seller), buyer:party(value.buyer),
         items:value.items.into_iter().map(|item| {
             let unit_code = match item.unit.as_str() { "Stunden" | "Stunde" | "h" => "HUR", "Tage" | "Tag" => "DAY", _ => "C62" };

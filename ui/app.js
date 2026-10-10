@@ -29,6 +29,13 @@ const newItem = () => ({
   unit_price_cents: appData.settings?.hourly_rate_cents || 0,
   vat_percent: 19,
 });
+const addDays = (value, days) => {
+  if (!value) return "";
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.valueOf())) return "";
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
 const defaultData = () => ({
   seller: { ...emptyParty(), name: "Musterfirma" },
   buyer: emptyParty(),
@@ -37,11 +44,12 @@ const defaultData = () => ({
   payment_reference: "",
   customer_id: 0,
   date: new Date().toISOString().slice(0, 10),
-  service_date: "",
-  service_month: false,
+  service_date: appData.settings?.service_date_always ? addDays(todayLocal(), 14) : "",
+  service_month: Boolean(appData.settings?.service_month_always),
   due_date: "",
   subject: "",
-  subject_prefix: appData?.settings?.subject_prefix ?? "Rechnung",
+  subject_prefix: appData?.settings?.subject_prefix ?? "",
+  number_in_subject: appData?.settings?.number_in_subject !== false,
   account_holder: "",
   iban: "",
   bic: "",
@@ -59,6 +67,7 @@ let appData = {
   status: "draft",
 };
 let data = defaultData();
+let autoServiceDate = false;
 let companyDraft = null;
 let dirty = false;
 let totals = { lines: [], taxes: [], net_cents: 0, tax_cents: 0, gross_cents: 0 };
@@ -130,8 +139,10 @@ function sellerPostalCity(seller) {
 function renderLegacyPreview() {
   const seller = data.seller,
     buyer = data.buyer;
+  const headingStart = [data.subject_prefix, data.number_in_subject !== false ? data.number : ""].filter(Boolean).join(" ");
+  const heading = [headingStart, data.subject].filter(Boolean).join(" - ");
   document.getElementById("preview").innerHTML =
-    `<div class="paper-header"><div class="paper-logo">${seller.name.toLowerCase() === "artmessengers.de" ? "<strong>art</strong>Messengers.de" : safe(seller.name, "Firma")}</div><div class="paper-contact">${safe(seller.alternative_name || seller.name)}<br>${safe(seller.street)}<br>${safe(sellerPostalCity(seller))}<br>${safe(seller.email)}</div></div><div class="paper-address"><div><small>● ${safe(seller.name)}</small><strong>${safe(buyer.name, "Empfänger")}</strong>${buyer.contact ? `<br>${escapeHtml(buyer.contact)}` : ""}<br>${safe(buyer.street)}<br>${safe(buyer.city)}<br>${safe(buyer.country, "DE")}</div><div class="meta"><strong>${safe(data.subject_prefix)} ${safe(data.number)}</strong><br>Datum: ${safe(data.date)}<br>${data.service_date ? `Leistungsdatum: ${safe(data.service_date)}<br>` : ""}${data.due_date ? `Fällig: ${safe(data.due_date)}` : ""}</div></div><div class="paper-subject">${safe([data.subject_prefix, data.number].filter(Boolean).join(" "))}${data.subject ? " - " + escapeHtml(data.subject) : ""}</div><table><thead><tr><th>Pos.</th><th>Beschreibung</th><th>Menge</th><th>Einzelpreis</th><th>Gesamt</th></tr></thead><tbody>${data.items.map((item, index) => `<tr><td>${index + 1}</td><td><strong>${safe(item.description, "Neue Position")}</strong><small>${escapeHtml(item.detail)}</small></td><td>${item.unit === "Pauschal" ? "—" : `${String(item.quantity).replace(".", ",")} ${escapeHtml(unitLabel(item.unit, item.quantity))}`}</td><td>${euro(item.unit_price_cents)}</td><td>${euro(totals.lines[index]?.net_cents)}</td></tr>`).join("")}</tbody></table><div class="paper-totals"><div><span>Netto</span><span>${euro(totals.net_cents)}</span></div>${totals.taxes.map((tax) => `<div><span>USt. ${tax.rate} %</span><span>${euro(tax.tax_cents)}</span></div>`).join("")}<div class="grand"><span>Gesamtbetrag</span><span>${euro(totals.gross_cents)}</span></div></div><div class="paper-payment"><p>Bitte überweisen Sie den Betrag${data.due_date ? ` bis zum ${safe(data.due_date)}` : ""} auf das unten genannte Konto.</p><div>Inhaber: ${safe(data.account_holder, seller.name)}<br>Verwendung: ${escapeHtml(paymentReference())}<br>IBAN: ${safe(data.iban)}</div>${data.payment_note ? `<p class="paper-note">${escapeHtml(data.payment_note)}</p>` : ""}</div><div class="paper-footer"><div>${safe(seller.alternative_name || seller.name)}<br>${safe(seller.street)}<br>${safe(sellerPostalCity(seller))}</div><div>${safe(seller.email)}<br>${safe(seller.phone)}<br>${safe(seller.website)}</div><div>${safe(data.bank_name)}<br>IBAN: ${safe(data.iban)}${data.bic ? `<br>BIC: ${escapeHtml(data.bic)}` : ""}</div></div>`;
+    `<div class="paper-header"><div class="paper-logo">${seller.name.toLowerCase() === "artmessengers.de" ? "<strong>art</strong>Messengers.de" : safe(seller.name, "Firma")}</div><div class="paper-contact">${safe(seller.alternative_name || seller.name)}<br>${safe(seller.street)}<br>${safe(sellerPostalCity(seller))}<br>${safe(seller.email)}</div></div><div class="paper-address"><div><small>● ${safe(seller.name)}</small><strong>${safe(buyer.name, "Empfänger")}</strong>${buyer.contact ? `<br>${escapeHtml(buyer.contact)}` : ""}<br>${safe(buyer.street)}<br>${safe(buyer.city)}<br>${safe(buyer.country, "DE")}</div><div class="meta"><strong>${safe(data.subject_prefix)} ${safe(data.number)}</strong><br>Datum: ${safe(data.date)}<br>${data.service_date ? `Leistungsdatum: ${safe(data.service_date)}<br>` : ""}${data.due_date ? `Fällig: ${safe(data.due_date)}` : ""}</div></div><div class="paper-subject">${escapeHtml(heading)}</div><table><thead><tr><th>Pos.</th><th>Beschreibung</th><th>Menge</th><th>Einzelpreis</th><th>Gesamt</th></tr></thead><tbody>${data.items.map((item, index) => `<tr><td>${index + 1}</td><td><strong>${safe(item.description, "Neue Position")}</strong><small>${escapeHtml(item.detail)}</small></td><td>${item.unit === "Pauschal" ? "—" : `${String(item.quantity).replace(".", ",")} ${escapeHtml(unitLabel(item.unit, item.quantity))}`}</td><td>${euro(item.unit_price_cents)}</td><td>${euro(totals.lines[index]?.net_cents)}</td></tr>`).join("")}</tbody></table><div class="paper-totals"><div><span>Netto</span><span>${euro(totals.net_cents)}</span></div>${totals.taxes.map((tax) => `<div><span>USt. ${tax.rate} %</span><span>${euro(tax.tax_cents)}</span></div>`).join("")}<div class="grand"><span>Gesamtbetrag</span><span>${euro(totals.gross_cents)}</span></div></div><div class="paper-payment"><p>Bitte überweisen Sie den Betrag${data.due_date ? ` bis zum ${safe(data.due_date)}` : ""} auf das unten genannte Konto.</p><div>Inhaber: ${safe(data.account_holder, seller.name)}<br>Verwendung: ${escapeHtml(paymentReference())}<br>IBAN: ${safe(data.iban)}</div>${data.payment_note ? `<p class="paper-note">${escapeHtml(data.payment_note)}</p>` : ""}</div><div class="paper-footer"><div>${safe(seller.alternative_name || seller.name)}<br>${safe(seller.street)}<br>${safe(sellerPostalCity(seller))}</div><div>${safe(seller.email)}<br>${safe(seller.phone)}<br>${safe(seller.website)}</div><div>${safe(data.bank_name)}<br>IBAN: ${safe(data.iban)}${data.bic ? `<br>BIC: ${escapeHtml(data.bic)}` : ""}</div></div>`;
   if (buyer.additional_info) {
     const recipient = document.querySelector("#preview .paper-address > div:first-child");
     const streetBreak = recipient.querySelectorAll("br")[buyer.contact ? 1 : 0];
@@ -498,11 +509,12 @@ async function showTemplatePreview() {
 function renderTemplates() {
   const firm = activeCompany();
   if (!appData.templates.includes(selectedTemplate))
-    selectedTemplate = firm?.template || appData.templates[0];
+    selectedTemplate = firm?.template || (appData.templates.includes("example") ? "example" : appData.templates[0]);
+  const activeTemplate = firm?.template || "example";
   document.getElementById("template-list").innerHTML = appData.templates
     .map(
       (name) =>
-        `<div class="template-row ${name === selectedTemplate ? "selected" : ""}"><button type="button" class="template-choice" data-view-template="${escapeHtml(name)}"><span class="template-icon">▧</span><span><strong>${escapeHtml(templateLabel(name))}</strong><small>${name === firm?.template ? "Aktuelle Vorlage" : "HTML · CSS"}</small></span></button><button type="button" class="button ${name === firm?.template ? "" : "primary"}" data-activate-template="${escapeHtml(name)}" ${name === firm?.template ? "disabled" : ""}>${name === firm?.template ? "Aktiv" : "Aktivieren"}</button></div>`,
+        `<div class="template-row ${name === selectedTemplate ? "selected" : ""}"><button type="button" class="template-choice" data-view-template="${escapeHtml(name)}"><span class="template-icon">▧</span><span><strong>${escapeHtml(templateLabel(name))}</strong><small>${name === activeTemplate ? "Aktuelle Vorlage" : "HTML · CSS"}</small></span></button><button type="button" class="button ${name === activeTemplate ? "" : "primary"}" data-activate-template="${escapeHtml(name)}" ${!firm || name === activeTemplate ? "disabled" : ""}>${name === activeTemplate ? "Aktiv" : "Aktivieren"}</button></div>`,
     )
     .join("");
   if (selectedTemplate) showTemplatePreview();
@@ -521,11 +533,13 @@ function fillSettings() {
   document
     .querySelectorAll("[data-setting]")
     .forEach(
-      (input) =>
-        (input.value =
-          input.dataset.setting === "hourly_rate_cents"
-            ? ((appData.settings?.hourly_rate_cents || 0) / 100).toFixed(2).replace(".", ",")
-            : (appData.settings?.[input.dataset.setting] ?? "")),
+      (input) => {
+        const value = appData.settings?.[input.dataset.setting];
+        if (input.type === "checkbox") input.checked = Boolean(value);
+        else input.value = input.dataset.setting === "hourly_rate_cents"
+          ? ((value || 0) / 100).toFixed(2).replace(".", ",")
+          : (value ?? "");
+      },
     );
   const city = splitCompanyCity(companyDraft?.party?.city);
   document
@@ -584,6 +598,7 @@ function showPage(next) {
   recordNavigation();
   if (next === "invoices") renderSearch();
   document.getElementById("create-company-button").classList.toggle("hidden", next !== "settings");
+  document.querySelectorAll("#settings-page input").forEach((input) => input.disabled = !activeCompany());
   if (next === "settings") {
     if (settingsRevision === settingsSavedRevision) fillSettings();
     updateReferenceExample();
@@ -612,6 +627,7 @@ function showPage(next) {
       ? `Einstellungen für ${activeCompany()?.party.name || "die aktuelle Firma"}`
       : subtitle;
   document.getElementById("export-button").classList.toggle("hidden", next !== "invoice");
+  document.querySelector("main > header").classList.toggle("settings-header", next === "settings");
   document.querySelector("main > header").classList.toggle("statistics-header", next === "statistics");
   document.getElementById("stats-header-filters").classList.toggle("hidden", next !== "statistics");
   document.querySelector(".header-actions").classList.toggle("hidden", next === "statistics");
@@ -621,11 +637,18 @@ function showPage(next) {
   if (next === "statistics") loadStatistics();
 }
 async function startInvoice(buyer) {
+  if (!activeCompany()) {
+    showPage("invoices");
+    document.getElementById("setup-notice").classList.remove("hidden");
+    setStatus("Bitte zunächst eine Firma anlegen");
+    return;
+  }
   await flushSettings();
   await flushSave();
   const companyId = appData.active_company_id;
   data = invoke ? await invoke("new_invoice", { companyId, date: todayLocal() }) : defaultData();
   data.date = todayLocal();
+  autoServiceDate = Boolean(appData.settings?.service_date_always);
   if (buyer) {
     data.buyer = structuredClone(buyer.party || buyer);
     data.customer_id = buyer.id || 0;
@@ -645,6 +668,7 @@ async function openInvoice(id) {
   await flushSettings();
   await flushSave();
   data = await invoke("open_invoice", { id });
+  autoServiceDate = false;
   customerFieldsExpanded = false;
   invoiceFieldsExpanded = false;
   paymentFieldsExpanded = false;
@@ -673,7 +697,12 @@ async function switchCompany(id) {
     syncUi();
     showPage("invoices");
     setStatus("Bereit");
-  } else await startInvoice();
+  } else {
+    data = appData.workspace;
+    dirty = false;
+    syncUi();
+    showPage("invoices");
+  }
   if (keepSettings) showPage("settings");
 }
 function writeItem(field) {
@@ -735,8 +764,14 @@ document.addEventListener("input", (event) => {
     } else {
       setPath(path, field.type === "checkbox" ? field.checked : field.value);
       if (path === "number") numberAvailable();
-      if (path === "date" && !data.due_date)
-        document.querySelector("[data-path=due_date]").value = effectiveDue();
+      if (path === "date") {
+        if (!data.due_date) document.querySelector("[data-path=due_date]").value = effectiveDue();
+        if (autoServiceDate) {
+          data.service_date = addDays(data.date, 14);
+          document.querySelector("[data-path=service_date]").value = data.service_date;
+        }
+      }
+      if (path === "service_date") autoServiceDate = false;
       preview();
       markDirty();
     }
@@ -788,6 +823,7 @@ document.getElementById("toggle-invoice-fields").addEventListener("click", () =>
 document
   .getElementById("sidebar-new")
   .addEventListener("click", () => startInvoice().catch((error) => setStatus(String(error))));
+document.getElementById("setup-settings-link").addEventListener("click", () => showPage("settings"));
 document
   .querySelectorAll(".nav")
   .forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page)));
@@ -914,7 +950,9 @@ async function flushSettings() {
     .forEach(
       (input) =>
         (settings[input.dataset.setting] =
-          input.dataset.setting === "hourly_rate_cents"
+          input.type === "checkbox"
+            ? input.checked
+            : input.dataset.setting === "hourly_rate_cents"
             ? Math.round(rate * 100)
             : ["due_days", "recent_count"].includes(input.dataset.setting)
               ? Number(input.value)
@@ -1001,6 +1039,7 @@ document.getElementById("create-company-form").addEventListener("submit", async 
     await flushSettings();
     await flushSave();
     const created = await invoke("create_company", { name });
+    document.getElementById("setup-notice").classList.add("hidden");
     document.getElementById("create-company-dialog").close();
     await switchCompany(created.id);
     showPage("settings");
@@ -1072,7 +1111,7 @@ document.getElementById("export-button").addEventListener("click", async () => {
     companyDraft = structuredClone(activeCompany());
     if (!data.date && appData.status !== "issued") data.date = todayLocal();
     syncUi();
-    showPage("invoice");
+    showPage(appData.invoices.length ? "invoice" : "invoices");
     setStatus("Bereit");
   } catch (error) {
     setStatus(`Laden fehlgeschlagen: ${error}`);
@@ -1397,6 +1436,7 @@ async function duplicateInvoice(id) {
   await flushSave();
   data = await invoke("duplicate_invoice", { id, date: todayLocal() });
   appData = await invoke("load_app");
+  autoServiceDate = Boolean(appData.settings?.service_date_always);
   companyDraft = structuredClone(activeCompany());
   dirty = false;
   customerFieldsExpanded = false;

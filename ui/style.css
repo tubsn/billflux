@@ -1182,6 +1182,23 @@ select {
   background: #fff2f2;
   color: #8d2525;
 }
+.setup-notice {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border: 1px solid #dd9c9c;
+  border-radius: 10px;
+  background: #fff2f2;
+  color: #8d2525;
+}
+.setup-notice button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .export-result.error strong {
   color: #8d2525;
 }
@@ -1222,17 +1239,27 @@ select {
 }
 .settings-page {
   padding: 30px 42px;
-  columns: 2;
-  column-gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
 }
 .settings-page .card {
-  break-inside: avoid;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 @media (max-width: 1000px) {
   .settings-page {
-    columns: 1;
+    grid-template-columns: 1fr;
   }
+}
+.settings-header .header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.settings-header .header-actions #save-status {
+  width: auto;
+  text-align: left;
 }
 .checkbox-label {
   display: flex;
@@ -1240,6 +1267,16 @@ select {
   gap: 10px;
   align-self: end;
   min-height: 43px;
+}
+.setting-checkbox-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.setting-checkbox-group legend {
+  color: #50616d;
+  font-size: 13px;
+  font-weight: 700;
 }
 .checkbox-label input {
   width: 18px;
